@@ -1,11 +1,23 @@
 defmodule MapImplTest do
   use ExUnit.Case, async: true
-  doctest KeywordLens
+  # doctest KeywordLens
 
   test "We can do the simplest list" do
     data = %{a: 1, b: 2}
     result = KeywordLens.map(data, [:a, :b], &(&1 + 1))
     assert result == %{a: 2, b: 3}
+  end
+
+  test "Three deep" do
+    data = %{f: %{}, a: %{g: %{}, b: %{c: 1}}}
+    result = KeywordLens.map(data, [a: [b: [:c]]], &(&1 + 1))
+    assert result == %{f: %{}, a: %{g: %{}, b: %{c: 2}}}
+  end
+
+  test "Three deep no extra" do
+    data = %{a: %{b: %{c: 1}}}
+    result = KeywordLens.map(data, [a: [b: [:c]]], &(&1 + 1))
+    assert result == %{a: %{b: %{c: 2}}}
   end
 
   test "We can do a simple list" do
@@ -18,6 +30,12 @@ defmodule MapImplTest do
     data = %{a: %{b: 1, c: 2}}
     result = KeywordLens.map(data, [a: [:b, :c]], &(&1 + 1))
     assert result == %{a: %{b: 2, c: 3}}
+  end
+
+  test "We can do a less simple list nested again" do
+    data = %{a: %{d: %{b: 1, c: 2}}}
+    result = KeywordLens.map(data, [a: [d: [:b, :c]]], &(&1 + 1))
+    assert result == %{a: %{d: %{b: 2, c: 3}}}
   end
 
   test "We can do an even less simple list" do
