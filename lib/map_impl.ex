@@ -11,7 +11,7 @@ defimpl KeywordLens, for: Map do
   """
   def map(data, keyword_lens, fun) do
     Enum.reduce(keyword_lens, data, fn lens, acc ->
-      paths = to_paths(lens, fun)
+      paths = KeywordLens.Helpers.to_paths(lens)
       # Creating the lenses then running through them is simpler but slower I presume
       # we could execute the function at the end of the path and merge the result there anyway.
       Enum.reduce(paths, acc, fn path, accum ->
