@@ -18,9 +18,14 @@ defimpl KeywordLens, for: Map do
     backtrack(visited, [], fun.(data), data_rest)
   end
 
-  defp lens_in([key | rest], visited, data, data_rest, fun) do
+  defp lens_in([key | rest], visited, data, data_rest, fun) when is_map(data) do
+    fetched = Map.fetch!(data, key)
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-    lens_in(rest, [key | visited], Map.fetch!(data, key), remaining, fun)
+    lens_in(rest, [key | visited], fetched, remaining, fun)
+  end
+
+  defp lens_in(_lens, _visited, _, _, _) do
+    raise KeywordLens.InvalidPathError
   end
 
   defp backtrack([], _visited, data, data_rest) do
@@ -28,7 +33,7 @@ defimpl KeywordLens, for: Map do
   end
 
   defp backtrack([key | rest], visited, data, data_rest) do
-    data = Map.merge(Map.delete(data_rest, key),%{key => data})
+    data = Map.merge(Map.delete(data_rest, key), %{key => data})
     backtrack(rest, [key | visited], data, Map.fetch!(data_rest, key))
   end
 

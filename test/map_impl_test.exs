@@ -57,11 +57,23 @@ defmodule MapImplTest do
   end
 
   test "When the path is too long" do
+    data = %{a: 1}
+
+    message =
+      "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+
+    assert_raise(KeywordLens.InvalidPathError, message, fn ->
+      KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
+    end)
   end
 
-  # test "When the path tries to lens into something opaque" do
-  #   data = %{a: 1}
-  #   result = KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
-  #   assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}}
-  # end
+  test "Mixing and matching data" do
+    data = %{a: %{b: 1, c: []}}
+    message =
+      "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+
+    assert_raise(KeywordLens.InvalidPathError, message, fn ->
+      KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
+    end)
+  end
 end
