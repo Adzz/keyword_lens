@@ -1,6 +1,6 @@
 defmodule MapImplTest do
   use ExUnit.Case, async: true
-  # doctest KeywordLens
+  doctest KeywordLens
 
   test "We can do the simplest list" do
     data = %{a: 1, b: 2}
