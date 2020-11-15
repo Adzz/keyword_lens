@@ -21,35 +21,39 @@ defmodule KeywordLens.Paths do
       [[:a], ["b"], [:c]]
 
   """
-  def to_lenses(paths) do
-    to_lenses(paths, [[]])
+  defp to_lenses(paths, fun) do
+    to_lenses(paths, [[]], fun)
   end
 
-  def to_lenses(value, [acc | _]) when is_atom(value) or is_binary(value) do
-    [acc ++ [value]]
+  defp to_lenses({key, value = {_, _}}, [current | acc], fun) when not is_list(value) do
+    to_lenses(value, [current ++ [key] | acc], fun)
   end
 
-  def to_lenses({key, value}, [acc | _]) when is_atom(value) or is_binary(value) do
+  defp to_lenses({key, value}, [acc | _], _fun) when not is_list(value) do
     [acc ++ [key, value]]
   end
 
-  def to_lenses({key, value}, [current | acc]) when is_list(value) do
-    to_lenses(value, [current ++ [key] | acc])
+  defp to_lenses({key, value}, [current | acc], fun) when is_list(value) do
+    to_lenses(value, [current ++ [key] | acc], fun)
   end
 
-  def to_lenses([{key, value}], [current | acc]) when is_list(value) do
-    to_lenses(value, [current ++ [key] | acc])
+  defp to_lenses([{key, value}], [current | acc], fun) when is_list(value) do
+    to_lenses(value, [current ++ [key] | acc], fun)
   end
 
-  def to_lenses([{key, value}], [current | acc]) when is_atom(value) or is_binary(value) do
+  defp to_lenses([{key, value}], [current | acc], _fun) when not is_list(value) do
     [current ++ [key, value] | acc]
   end
 
-  def to_lenses([value], [current | acc]) do
+  defp to_lenses([value], [current | acc], _fun) do
     [current ++ [value] | acc]
   end
 
-  def to_lenses([value | rest], [current | acc]) do
-    to_lenses(rest, [current | [current ++ [value] | acc]])
+  defp to_lenses([value | rest], [current | acc], fun) do
+    to_lenses(rest, [current | [current ++ [value] | acc]], fun)
+  end
+
+  defp to_lenses(value, [acc | _], _fun) do
+    [acc ++ [value]]
   end
 end
