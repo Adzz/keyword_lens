@@ -56,6 +56,43 @@ defmodule MapImplTest do
     assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}}
   end
 
+  test "string keys" do
+    data = %{"a" => 1, "b" => 2}
+    result = KeywordLens.map(data, ["a", "b"], &(&1 + 1))
+    assert result == %{"a" => 2, "b" => 3}
+  end
+
+  test "number keys" do
+    data = %{1 => 1, 2 => 2}
+    result = KeywordLens.map(data, [1, 2], &(&1 + 1))
+    assert result == %{1 => 2, 2 => 3}
+  end
+
+  test "other keys" do
+    data = %{1 => %{2 => %{3 => 7}}, %{} => 2}
+    result = KeywordLens.map(data, [{1, {2, 3}}], &(&1 + 1))
+    assert result == %{1 => %{2 => %{3 => 8}}, %{} => 2}
+
+    data = %{1 => %{2 => %{[] => 7}}, %{} => 2}
+    result = KeywordLens.map(data, [{1, {2, []}}], &(&1 + 1))
+    assert result == %{1 => %{2 => %{[] => 8}}, %{} => 2}
+
+    data = %{{1, 2} => %{2 => %{[] => 7}}, %{} => 2}
+    result = KeywordLens.map(data, [{{1, 2}, {2, []}}], &(&1 + 1))
+    assert result == %{%{} => 2, {1, 2} => %{2 => %{[] => 8}}}
+  end
+
+  test "Other keys Error" do
+    data = %{1 => 1, [] => []}
+
+    message =
+      "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+
+    assert_raise(KeywordLens.InvalidPathError, message, fn ->
+      KeywordLens.map(data, [{1, {[], :a}}], &(&1 + 1))
+    end)
+  end
+
   test "When the path is too long" do
     data = %{a: 1}
 
@@ -69,6 +106,7 @@ defmodule MapImplTest do
 
   test "Mixing and matching data" do
     data = %{a: %{b: 1, c: []}}
+
     message =
       "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
 

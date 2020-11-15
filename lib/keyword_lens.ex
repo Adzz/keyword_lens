@@ -1,6 +1,4 @@
 defprotocol KeywordLens do
-  # We could use a lens, but that would require the user to create a lens somehow and pass that in.
-  # Which means 1. they need to be able to create a lens, and know what that is and have a lens library
   @moduledoc """
   A keyword lens is a nested keyword-like structure used to describe paths into certain data types.
   It is similar to the list you can provide to Ecto's Repo.preload/2
