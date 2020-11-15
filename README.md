@@ -35,7 +35,16 @@ paths = [[:a, :z], [:a, :b, :c], [:a, :b, :d, :e]]
 lens = [:a, "b", :c]
 paths = [[:a], ["b"], [:c]]
 ```
-"""
+
+You can use `KeywordLens.Helpers.to_paths/2` to see which paths are encoded in a given KeywordLens.
+
+```elixir
+KeywordLens.Helpers.to_paths([a: :b])
+[:a, :b]
+
+KeywordLens.Helpers.to_paths([a: [b: [:c, :d]]])
+[[:a, :b, :c], [:a, :b, :d]]
+```
 
 This library provides a protocol you can implement for your own data structures and structs. We provide a map implementation to get started.
 
@@ -44,7 +53,6 @@ This library provides a protocol you can implement for your own data structures 
 ```elixir
 KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
 %{a: %{b: 2}}
-
 ```
 
 ## Installation

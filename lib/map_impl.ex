@@ -3,13 +3,19 @@ defimpl KeywordLens, for: Map do
   A map implementation of the KeywordLens protocol.
   """
 
-  def map(data, paths, fun) do
-    Enum.reduce(paths, data, fn path, acc ->
-      lenses = to_lenses(path, fun)
+  @doc """
+  Returns a new map where each value pointed to by the KeywordLens
+
+  Maps over the provided data passing each value at the end of every path in the KeywordLens to the
+  fun,
+  """
+  def map(data, keyword_lens, fun) do
+    Enum.reduce(keyword_lens, data, fn lens, acc ->
+      paths = to_paths(lens, fun)
       # Creating the lenses then running through them is simpler but slower I presume
       # we could execute the function at the end of the path and merge the result there anyway.
-      Enum.reduce(lenses, acc, fn lens, accum ->
-        lens_in(lens, [], accum, %{}, fun)
+      Enum.reduce(paths, acc, fn path, accum ->
+        lens_in(path, [], accum, %{}, fun)
       end)
     end)
   end
@@ -37,39 +43,39 @@ defimpl KeywordLens, for: Map do
     backtrack(rest, [key | visited], data, Map.fetch!(data_rest, key))
   end
 
-  defp to_lenses(paths, fun) do
-    to_lenses(paths, [[]], fun)
+  defp to_paths(paths, fun) do
+    to_paths(paths, [[]], fun)
   end
 
-  defp to_lenses({key, value = {_, _}}, [current | acc], fun) when not is_list(value) do
-    to_lenses(value, [current ++ [key] | acc], fun)
+  defp to_paths({key, value = {_, _}}, [current | acc], fun) when not is_list(value) do
+    to_paths(value, [current ++ [key] | acc], fun)
   end
 
-  defp to_lenses({key, value}, [acc | _], _fun) when not is_list(value) do
+  defp to_paths({key, value}, [acc | _], _fun) when not is_list(value) do
     [acc ++ [key, value]]
   end
 
-  defp to_lenses({key, value}, [current | acc], fun) when is_list(value) do
-    to_lenses(value, [current ++ [key] | acc], fun)
+  defp to_paths({key, value}, [current | acc], fun) when is_list(value) do
+    to_paths(value, [current ++ [key] | acc], fun)
   end
 
-  defp to_lenses([{key, value}], [current | acc], fun) when is_list(value) do
-    to_lenses(value, [current ++ [key] | acc], fun)
+  defp to_paths([{key, value}], [current | acc], fun) when is_list(value) do
+    to_paths(value, [current ++ [key] | acc], fun)
   end
 
-  defp to_lenses([{key, value}], [current | acc], _fun) when not is_list(value) do
+  defp to_paths([{key, value}], [current | acc], _fun) when not is_list(value) do
     [current ++ [key, value] | acc]
   end
 
-  defp to_lenses([value], [current | acc], _fun) do
+  defp to_paths([value], [current | acc], _fun) do
     [current ++ [value] | acc]
   end
 
-  defp to_lenses([value | rest], [current | acc], fun) do
-    to_lenses(rest, [current | [current ++ [value] | acc]], fun)
+  defp to_paths([value | rest], [current | acc], fun) do
+    to_paths(rest, [current | [current ++ [value] | acc]], fun)
   end
 
-  defp to_lenses(value, [acc | _], _fun) do
+  defp to_paths(value, [acc | _], _fun) do
     [acc ++ [value]]
   end
 end
