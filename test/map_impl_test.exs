@@ -82,6 +82,12 @@ defmodule MapImplTest do
     assert result == %{%{} => 2, {1, 2} => %{2 => %{[] => 8}}}
   end
 
+  test "Inner map key the same as outer map key" do
+    data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
+    result = KeywordLens.map(data, [a: [a: [:a]]], &(&1 + 1))
+    assert result == %{a: %{b: %{c: 1}, g: %{}, a: %{a: 2}}, f: %{}}
+  end
+
   test "Other keys Error" do
     data = %{1 => 1, [] => []}
 

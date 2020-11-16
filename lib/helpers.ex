@@ -27,7 +27,7 @@ defmodule KeywordLens.Helpers do
   end
 
   defp expand({key, value = {_, _}}, [current | acc]) when not is_list(value) do
-    # We should reverse these probably for perf.
+    # TODO: We should probably create these in reverse order ? Does that change anything
     expand(value, [current ++ [key] | acc])
   end
 
