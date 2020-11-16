@@ -86,6 +86,10 @@ defmodule MapImplTest do
     data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
     result = KeywordLens.map(data, [a: [b: [:c]]], &(&1 + 1))
     assert result == %{a: %{a: %{a: 1}, b: %{c: 2}, g: %{}}, f: %{}}
+
+    data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
+    result = KeywordLens.map(data, [a: [a: [:a]]], &(&1 + 1))
+    assert result == %{a: %{a: %{a: 2}, b: %{c: 1}, g: %{}}, f: %{}}
   end
 
   test "Other keys Error" do
