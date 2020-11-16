@@ -11,9 +11,11 @@ defimpl KeywordLens, for: Map do
   """
   def map(data, keyword_lens, fun) do
     Enum.reduce(keyword_lens, data, fn lens, acc ->
-      paths = KeywordLens.Helpers.to_paths(lens)
+      paths = KeywordLens.Helpers.expand(lens)
+      # TODO:
       # Creating the lenses then running through them is simpler but slower I presume
       # we could execute the function at the end of the path and merge the result there anyway.
+      # I'm pretty sure we can do this in one pass so we should do that.
       Enum.reduce(paths, acc, fn path, accum ->
         lens_in(path, [], accum, %{}, fun)
       end)
@@ -26,6 +28,7 @@ defimpl KeywordLens, for: Map do
 
   defp lens_in([key | rest], visited, data, data_rest, fun) when is_map(data) do
     fetched = Map.fetch!(data, key)
+    # Will this fuck up if the inner map has the same key as the outer map? Check that.
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
     lens_in(rest, [key | visited], fetched, remaining, fun)
   end

@@ -8,53 +8,54 @@ defmodule KeywordLens.Helpers do
   Takes a KeywordLens and turns it into a list of all of the lenses the KeywordLens describes.
 
   ### Examples
-      iex>  lens = [a: :b]
-      [:a, :b]
 
-      iex>lens = [a: [b: [:c, :d]]]
-      paths = [[:a, :b, :c], [:a, :b, :d]]
+      iex> KeywordLens.Helpers.expand([a: :b])
+      [[:a, :b]]
 
-      iex> lens = [a: [:z, b: [:c, d: :e]]]
-      [[:a, :z], [:a, :b, :c], [:a, :b, :d, :e]]
+      iex> KeywordLens.Helpers.expand([a: [b: [:c, :d]]])
+      [[:a, :b, :d], [:a, :b, :c]]
 
-      iex>lens = [:a, "b", :c]
-      [[:a], ["b"], [:c]]
+      iex> KeywordLens.Helpers.expand([a: [:z, b: [:c, d: :e]]])
+      [[:a, :b, :d, :e], [:a, :b, :c], [:a, :z]]
+
+      iex> KeywordLens.Helpers.expand([:a, "b", :c])
+      [[:c], ["b"], [:a]]
 
   """
-  def to_paths(paths) do
-    to_paths(paths, [[]])
+  def expand(paths) do
+    expand(paths, [[]])
   end
 
-  defp to_paths({key, value = {_, _}}, [current | acc]) when not is_list(value) do
+  defp expand({key, value = {_, _}}, [current | acc]) when not is_list(value) do
     # We should reverse these probably for perf.
-    to_paths(value, [current ++ [key] | acc])
+    expand(value, [current ++ [key] | acc])
   end
 
-  defp to_paths({key, value}, [acc | _]) when not is_list(value) do
+  defp expand({key, value}, [acc | _]) when not is_list(value) do
     [acc ++ [key, value]]
   end
 
-  defp to_paths({key, value}, [current | acc]) when is_list(value) do
-    to_paths(value, [current ++ [key] | acc])
+  defp expand({key, value}, [current | acc]) when is_list(value) do
+    expand(value, [current ++ [key] | acc])
   end
 
-  defp to_paths([{key, value}], [current | acc]) when is_list(value) do
-    to_paths(value, [current ++ [key] | acc])
+  defp expand([{key, value}], [current | acc]) when is_list(value) do
+    expand(value, [current ++ [key] | acc])
   end
 
-  defp to_paths([{key, value}], [current | acc]) when not is_list(value) do
+  defp expand([{key, value}], [current | acc]) when not is_list(value) do
     [current ++ [key, value] | acc]
   end
 
-  defp to_paths([value], [current | acc]) do
+  defp expand([value], [current | acc]) do
     [current ++ [value] | acc]
   end
 
-  defp to_paths([value | rest], [current | acc]) do
-    to_paths(rest, [current | [current ++ [value] | acc]])
+  defp expand([value | rest], [current | acc]) do
+    expand(rest, [current | [current ++ [value] | acc]])
   end
 
-  defp to_paths(value, [acc | _]) do
+  defp expand(value, [acc | _]) do
     [acc ++ [value]]
   end
 end

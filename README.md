@@ -7,7 +7,7 @@ You can describe a KeywordLens like this:
 [a: :b, c: [d: :e]]
 ```
 
-Such a list is handy for describing a subset of nested data structures. For example, you can imagine the following KeywordLens: `[a: :b]` applied to this map: `%{a: %{b: 1}}` points to the value `1`. In contrast this KeywordLens: `[:a, :b]` applied to this map `%{a: 1, b: 2}` points to both values `1` and `2`.
+Such a list is handy for describing subsets of nested data structures. For example, you can imagine the following KeywordLens: `[a: :b]` applied to this map: `%{a: %{b: 1}}` points to the value `1`. In contrast this KeywordLens: `[:a, :b]` applied to this map `%{a: 1, b: 2}` points to both values `1` and `2`.
 
 It's not a proper Keyword list because we allow any key for convenience, so these are valid:
 
@@ -18,31 +18,31 @@ It's not a proper Keyword list because we allow any key for convenience, so thes
 [{1, {2, 3}}]
 ```
 
-In effect the list is a list of paths to values contained in a given data structure. This is useful for describing changes that should apply to a subset of a nested data structure. One KeywordLens can point to many different values inside a given data structure.
+One KeywordLens can point to many different values inside a given data structure.
 
-Here are some examples of different KeywordLenses and the unique set of paths they represent.
+Here are some examples of different KeywordLenses and the unique set of lenses they represent.
 
 ```elixir
-lens = [a: :b]
-paths = [:a, :b]
+keyword_lens = [a: :b]
+lenses = [[:a], [:b]]
 
-lens = [a: [b: [:c, :d]]]
-paths = [[:a, :b, :c], [:a, :b, :d]]
+keyword_lens = [a: [b: [:c, :d]]]
+lenses = [[:a, :b, :c], [:a, :b, :d]]
 
-lens = [a: [:z, b: [:c, d: :e]]]
-paths = [[:a, :z], [:a, :b, :c], [:a, :b, :d, :e]]
+keyword_lens = [a: [:z, b: [:c, d: :e]]]
+lenses = [[:a, :z], [:a, :b, :c], [:a, :b, :d, :e]]
 
-lens = [:a, "b", :c]
-paths = [[:a], ["b"], [:c]]
+keyword_lens = [:a, "b", :c]
+lenses = [[:a], ["b"], [:c]]
 ```
 
-You can use `KeywordLens.Helpers.to_paths/2` to see which paths are encoded in a given KeywordLens.
+You can use `KeywordLens.Helpers.expand/1` to see which unique lenses are encoded in a given KeywordLens.
 
 ```elixir
-KeywordLens.Helpers.to_paths([a: :b])
+KeywordLens.Helpers.expand([a: :b])
 [:a, :b]
 
-KeywordLens.Helpers.to_paths([a: [b: [:c, :d]]])
+KeywordLens.Helpers.expand([a: [b: [:c, :d]]])
 [[:a, :b, :c], [:a, :b, :d]]
 ```
 
