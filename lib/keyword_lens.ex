@@ -45,4 +45,7 @@ defprotocol KeywordLens do
       %{a: %{b: 2}}
   """
   def map(data, paths, fun)
+  # This is the key to fail fast.
+  # Also reduce is the key to map/3 really...
+  # def reduce_while(data, acc, fun)
 end

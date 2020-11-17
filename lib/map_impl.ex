@@ -28,7 +28,6 @@ defimpl KeywordLens, for: Map do
 
   defp lens_in([key | rest], visited, data, data_rest, fun) when is_map(data) do
     fetched = Map.fetch!(data, key)
-    # Will this fuck up if the inner map has the same key as the outer map? Check that.
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
     lens_in(rest, [key | visited], fetched, remaining, fun)
   end
@@ -55,6 +54,7 @@ defimpl KeywordLens, for: Map do
   end
 
   defp to_paths({key, value}, [acc | _], _fun) when not is_list(value) do
+    # Instead of this we should call the fun and backtrack. But that requires
     [acc ++ [key, value]]
   end
 
