@@ -57,7 +57,22 @@ KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
 
 ### Can't I just use get_in / update_in
 
-You could, sort of. But the syntax becomes very.... verbose:
+You could, but the syntax becomes a bit verbose and repetitive:
+
+```elixir
+%{a: %{b: 1}, c: %{d: 1, e: 1}}
+|> update_in([:a, :b], & &1 + 1)
+|> update_in([:c, :d], & &1 + 1)
+|> update_in([:c, :e], & &1 + 1)
+%{a: %{b: 2}, c: %{d: 2, e: 2}}
+
+# Vs
+
+KeywordLens.map(%{a: %{b: 1}, c: %{d: 1, e: 1}}, [a: :b, c: [:d, :e]], & &1+1)
+%{a: %{b: 2}, c: %{d: 2, e: 2}}
+```
+
+
 
 ## Installation
 
