@@ -120,6 +120,7 @@ defmodule MapImplTest do
     test "deep legs" do
       data = %{a: %{b: 1, c: %{d: 3, e: 4}}, f: %{g: %{h: 5}}}
       result = KeywordLens.map(data, [a: [:b, c: :d], f: [g: :h]], &(&1 + 1))
+      %{a: %{b: 2, c: %{d: 4, b: 2}}, f: %{g: %{h: 6}}}
       assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}, f: %{g: %{h: 6}}}
 
       data = %{a: %{b: 1, c: %{d: 3, e: 4}}, f: %{b: %{c: 5}}}
