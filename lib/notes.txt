@@ -1,0 +1,119 @@
+### Some mad rambling notes on reduce and map.
+
+#### When you can't implement map with reduce.
+
+When you have a list using a zipper is like this:
+rest (values not yet seen), value (the one in focus), seen (values already seen)
+[3,4]                         2,                      [1]
+
+So iterating is moving the value into seen, and taking the head off of rest into value:
+[4],    3,   [2, 1]
+
+We put the value onto the head of the seen list because we are working with a linked list so
+it is more efficient that way.
+
+to "go back" as it were we just pop the head off seen, put that into value and put the value
+back onto rest
+[3,4]   2,   [1]
+
+Okay now let's try a map:
+%{e: :f, g: :h}, %{c: :d}, %{a: :b}
+
+We can do the same thing to step forward.
+%{g: :h}, %{e: :f}, %{a: :b, c: :d}
+
+This all works fine, but where it gets tricky is in trying to work with nested data. So let's imagine iterating
+through this data structure, but going in as well as across:
+%{a: %{b: %{c: :d}, e: :f}, g: :h}
+Here we need a different kind of zipper. Let's imagine lensing into this path [:a, :b, :c], so we
+want to Map.get(data, :a) |> Map.get(:b) |> Map.get(:c)
+
+The old approach wont work:
+Rest        Focused                       Seen
+%{g: :h},  %{a: %{b: %{c: :d}, e: :f}},   %{}
+
+Right now :a key and its value are being pointed to by our function, but the next step would
+move that to the seen pile, and bring in the :g key. when what we want is to go in.
+
+It turns out we can do that, but we have to change what happens when we do our next step, and
+we have to change what our seen pile looks like because it needs to store enough information
+such that when we step backwards we can restore the original map with no information loss.
+
+Or seen pile essentially becomes our map, inside out. Or first step looks like this:
+ rest,   focus,                  seen
+ %{},    %{b: %{c: :d}, e: :f},  %{a: %{}, %{g: :h}}
+
+Then forward again
+ rest,  focus,         seen
+ %{},  %{c: :d}, %{b: %{a: %{},  %{g: :h}}, e: :f}
+
+That means if we step backwards our focus becomes what is currently in focus under the key
+we are moving back to, merged with the rest of the map after we delete the key we are moving back
+to. Then our seen becomes what was in the seen map under the key we are moving back to.
+ %{}, %{b: %{c: :d}, e: :f}, %{a: %{}, %{g: :h}}
+
+So now we can lens in, and / or iterate across our keys. We can fully search our graph.
+Usually if you implement reduce, you get a bunch of functions that work on top of it, like
+map, filter, count etc. Reduce takes the thing we are iterating through, an accumulator and
+a reducing function which gets each item of the iteration and the accumulator in turn.
+
+Normally reduce has everything we need to implement map etc.
+But in our paradigm that doesn't seem to be true any longer. The semantics of a map function
+are that it replaces each element with the result of the mapping function.
+If we implemented reduce for our keyword lens, we could do it like this:
+
+KeywordLens.reduce_while(%{a: %{b: 1}}, [:a, :b], %{}, fn {key, value}, acc -> Map.put(acc, key, value) end)
+%{b: 2}
+
+Our acc is an empty map, and each time we get a value from the data we are iterating over, we
+just put it into the acc. This is very much like a normal reduce.
+Okay, so let's try to implement map. We can't do it because we don't have access to any of the
+data which is not pointed to by the keyword lens. We don't have a way to regenerate the existing
+map because our accumulator only sees part of it. That means we can't implement map with our
+reduce.
+
+Essentially, reduce has two kinds of meanings here. It can either mean "I am making a new thing
+with the values I've pulled out of the original" or it can mean map.
+
+Reduce never means map. Reduce always means, create a new thing, from these values. It's just
+that in the normal paradigm we always take everything and so reduce and map are equivalent.
+
+  However, does that limit us. Like if we want to replace values (like in a map) but with data
+  from the previous iteration. Well we can still faff manually.
+
+  thing = %{a: %{b: 1}}
+  KeywordLens.reduce_while(thing, [a: :b], fn {key, value}, acc ->
+    thing |> Map.get(key)
+    .... do stuff.
+  end)
+  paths = [1, 2, 3, 4]
+
+On one hand it's visiting a subset of the nodes. On the other hand it's doing something with
+the result, which could be get_in/put_in. Or it could be something else.
+
+The visiting a subset of nodes thing is essentially a Window. Actually it's not because the
+window semantics apply to how many items you receive in each step. The subset approach still
+receives one element at a time, it's just you receive a subset of the number of possible elements.
+
+We could think of a way to apply it to a list too:
+this visits every element:
+[1, 2, 3, 4, 5], [0, 1, 2, 3, 4]
+as does this:
+(or does it, just thought it would be cool to allow this or some kind of nth_every but more
+powerful. Like 1st, 3rd, then every other....) tbh I think there is Enum.every so sticking to
+the "maping over a subset" paradigm is a good idea. So you are defining a subset of keys to
+apply to.
+
+[1, 2, 3, 4, 5], 0..4
+[1, 2, 3, 4, 5], [0..1, 5]
+this visits first and last
+[1, 2, 3, 4, 5], [0, 4]
+And we can nest, this points to the 5th element (4th 0 based index)
+[1, [3, 4, 5]] [{2, [3, 4, 5]}]
+
+Great. But now let's consider a nested list:
+[[3], [4]], [2], [[1]] [{0, 0}, {1, 1}]
+
+Again this all works as per, but what we want is to reach into the various nestings and do shit
+I suppose implicit in the list iteration is that an item, when mapping is returned back to
+where it was.
