@@ -26,6 +26,29 @@ defmodule MapImplTest do
     end
   end
 
+  describe "map_while" do
+    test "we can map without a stop like normal" do
+      data = %{a: 1, b: 2}
+      result = KeywordLens.map_while(data, [:a, :b], &{:cont, &1 + 1})
+      assert result == %{a: 2, b: 3}
+    end
+
+    test "We can halt" do
+      data = %{a: 1, b: 2}
+      result = KeywordLens.map_while(data, [:a, :b], &{:halt, {:error, "#{&1} is no good"}})
+      assert result == {:error, "1 is no good"}
+    end
+
+    test "error if the mapping function seems wrong" do
+      data = %{a: 1, b: 2}
+      message = "The reducing function should return {:cont, term} or {:halt, term}"
+
+      assert_raise(KeywordLens.InvalidReducingFunctionError, message, fn ->
+        KeywordLens.map_while(data, [:a, :b], &(&1 + 1))
+      end)
+    end
+  end
+
   describe "map" do
     test "We can do the simplest list" do
       data = %{a: 1, b: 2}

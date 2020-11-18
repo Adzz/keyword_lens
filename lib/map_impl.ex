@@ -46,7 +46,20 @@ defimpl KeywordLens, for: Map do
   end
 
   @doc """
-  Returns data with each value pointed to by the KeywordLens has been replaced by the result
+  Maps until the mapping fun returns {:halt, term}, or until we reach the end of the data being
+  mapped over. The mapping function must return {:cont, term} to continue to the next iteration.
+
+  Returns data where each value pointed to by the KeywordLens has been replaced by the result
+  of calling the fun with that value.
+  """
+  def map_while(data, keyword_lens, fun) do
+    Enum.reduce_while(keyword_lens, data, fn lens, acc ->
+      lens_in(lens, acc, fun)
+    end)
+  end
+
+  @doc """
+  Returns data where each value pointed to by the KeywordLens has been replaced by the result
   of calling the fun with that value.
 
   ### Examples
@@ -55,8 +68,11 @@ defimpl KeywordLens, for: Map do
       %{a: %{b: 2}}
   """
   def map(data, keyword_lens, fun) do
+    fun = fn value -> {:cont, fun.(value)} end
+
     Enum.reduce(keyword_lens, data, fn lens, acc ->
-      lens_in(lens, acc, fun)
+      {:cont, result} = lens_in(lens, acc, fun)
+      result
     end)
   end
 
@@ -89,7 +105,11 @@ defimpl KeywordLens, for: Map do
       %{value => %{key => data_rest} |> Map.merge(Map.delete(data, key))}
       |> Map.merge(Map.delete(Map.fetch!(data, key), value))
 
-    backtrack([value, key | acc], [], fun.(fetched), remaining)
+    case fun.(fetched) do
+      {:cont, result} -> backtrack([value, key | acc], [], result, remaining)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
   end
 
   defp lens_in([{key, value}], [current | acc], data, data_rest, fun) when is_list(value) do
@@ -111,13 +131,22 @@ defimpl KeywordLens, for: Map do
       %{value => Map.merge(%{key => data_rest}, Map.delete(data, key))}
       |> Map.merge(Map.delete(Map.fetch!(data, key), value))
 
-    backtrack([value, key | current], [], fun.(fetched), remaining)
+    case fun.(fetched) do
+      {:cont, result} -> backtrack([value, key | current], [], result, remaining)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
   end
 
   defp lens_in([key], [current | _], data, data_rest, fun) do
     fetched = Map.fetch!(data, key)
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-    backtrack([key | current], [], fun.(fetched), remaining)
+
+    case fun.(fetched) do
+      {:cont, result} -> backtrack([key | current], [], result, remaining)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
   end
 
   # Here we have gotten to the end of one path, so we need to finish it off, then
@@ -125,24 +154,30 @@ defimpl KeywordLens, for: Map do
   defp lens_in([key | rest], [current | acc], data, data_rest, fun) do
     fetched = Map.fetch!(data, key)
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-    dataa = backtrack([key | current], [], fun.(fetched), remaining)
 
-    data =
-      Enum.reduce(Enum.reverse(current), dataa, fn key, acc ->
-        Map.fetch!(acc, key)
-      end)
-
-    lens_in(rest, [current | [[key | current] | acc]], data, data_rest, fun)
+    with {:cont, result} <- fun.(fetched),
+         {:cont, dataa} <- backtrack([key | current], [], result, remaining) do
+      data = Enum.reduce(Enum.reverse(current), dataa, fn key, acc -> Map.fetch!(acc, key) end)
+      lens_in(rest, [current | [[key | current] | acc]], data, data_rest, fun)
+    else
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
   end
 
   defp lens_in(key, [acc | _], data, data_rest, fun) do
     fetched = Map.fetch!(data, key)
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-    backtrack([key | acc], [], fun.(fetched), remaining)
+
+    case fun.(fetched) do
+      {:cont, result} -> backtrack([key | acc], [], result, remaining)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
   end
 
   defp backtrack([], _visited, data, data_rest) do
-    Map.merge(data, data_rest)
+    {:cont, Map.merge(data, data_rest)}
   end
 
   defp backtrack([key | rest], visited, data, data_rest) do

@@ -45,5 +45,6 @@ defprotocol KeywordLens do
       %{a: %{b: 2}}
   """
   def map(data, keyword_lens, fun)
+  def map_while(data, keyword_lens, fun)
   def reduce_while(data, keyword_lens, acc, fun)
 end
