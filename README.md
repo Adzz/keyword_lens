@@ -91,15 +91,3 @@ Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_do
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/keyword_lens](https://hexdocs.pm/keyword_lens).
 
-
-### To Do
-
-I guess really we should implement the Enum module in this paradigm. We could imagine KeywordLens.count/2 which would return you the count of all the items at the ends of the paths, returning 0 if the path doesn't point to anything in the data structure.
-
-I'm not sure if we can copy the Enumerable/Enum approach and define a reduce_while protocol then define everything else in terms of that. We can maybe ignore the optimizations for now.
-
-
-
-
-
-
