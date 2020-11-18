@@ -4,14 +4,14 @@ defprotocol KeywordLens do
   It is similar to the list you can provide to Ecto's Repo.preload/2
 
   You can describe a KeywordLens like this:
-  [a: :b, c: [d: :e]]
+  `[a: :b, c: [d: :e]]`
 
   Such a list is handy for describing a subset of a nested map structure. For example, you can
-  imagine the following path: [a: :b] applied to this map: %{a: %{b: 1}} points to the value 1.
+  imagine the following path: `[a: :b]` applied to this map: `%{a: %{b: 1}}` points to the value 1.
 
   It's not a proper Keyword list because we allow string keys for convenience, so this is valid:
 
-  [{"a", :b}]
+  `[{"a", :b}]`
 
   In effect the list is a list of paths to values contained in a given data structure. This is
   useful for describing changes that should apply to a subset of a nested data structure.
@@ -33,6 +33,10 @@ defprotocol KeywordLens do
   lens = [:a, "b", :c]
   paths = [[:a], ["b"], [:c]]
   ```
+
+  You can implement this protocol for your own data types and therefore define different ways that
+  the KeywordLens can be applied to your data structures. A map implementation is provided for
+  convenience.
   """
 
   @doc """
