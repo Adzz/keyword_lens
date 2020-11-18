@@ -27,36 +27,44 @@ defmodule KeywordLens.Helpers do
   end
 
   defp expand({key, value = {_, _}}, [current | acc]) when not is_list(value) do
+    "expand" |> IO.inspect(limit: :infinity, label: "1")
     # TODO: We should probably create these in reverse order ? Does that change anything
     # For this helper it's fine I think. IRL in the map function we do optimizations.
     expand(value, [current ++ [key] | acc])
   end
 
   defp expand({key, value}, [acc | _]) when not is_list(value) do
+    "expand" |> IO.inspect(limit: :infinity, label: "2")
     [acc ++ [key, value]]
   end
 
   defp expand({key, value}, [current | acc]) when is_list(value) do
+    "expand" |> IO.inspect(limit: :infinity, label: "3")
     expand(value, [current ++ [key] | acc])
   end
 
   defp expand([{key, value}], [current | acc]) when is_list(value) do
+    "expand" |> IO.inspect(limit: :infinity, label: "4")
     expand(value, [current ++ [key] | acc])
   end
 
   defp expand([{key, value}], [current | acc]) when not is_list(value) do
+    "expand" |> IO.inspect(limit: :infinity, label: "5")
     [current ++ [key, value] | acc]
   end
 
   defp expand([value], [current | acc]) do
+    "expand" |> IO.inspect(limit: :infinity, label: "6")
     [current ++ [value] | acc]
   end
 
   defp expand([value | rest], [current | acc]) do
+    "expand" |> IO.inspect(limit: :infinity, label: "7")
     expand(rest, [current | [current ++ [value] | acc]])
   end
 
   defp expand(value, [acc | _]) do
+    "expand" |> IO.inspect(limit: :infinity, label: "8")
     [acc ++ [value]]
   end
 end

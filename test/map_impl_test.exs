@@ -27,6 +27,23 @@ defmodule MapImplTest do
   end
 
   describe "map_while" do
+    test "does this work?" do
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+
+      result =
+        KeywordLens.map_while(data, [state: [params: :price, other: :thing]], fn x ->
+          {:cont, IO.inspect(x, limit: :infinity, label: "XX") + 1}
+        end)
+
+      assert result == %{a: 2, b: 3}
+
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+
+      result = KeywordLens.map_while(data, [state: [params: :price]], &{:cont, &1 + 1})
+
+      assert result == %{a: 2, b: 3}
+    end
+
     test "we can map without a stop like normal" do
       data = %{a: 1, b: 2}
       result = KeywordLens.map_while(data, [:a, :b], &{:cont, &1 + 1})
