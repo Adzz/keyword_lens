@@ -44,8 +44,6 @@ defprotocol KeywordLens do
       iex> KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
       %{a: %{b: 2}}
   """
-  def map(data, paths, fun)
-  # This is the key to fail fast.
-  # Also reduce is the key to map/3 really...
-  # def reduce_while(data, acc, fun)
+  def map(data, keyword_lens, fun)
+  def reduce_while(data, keyword_lens, acc, fun)
 end

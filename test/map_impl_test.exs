@@ -3,7 +3,27 @@ defmodule MapImplTest do
   doctest KeywordLens
 
   describe "reduce_while" do
+    test "We can reduce a map successfully" do
+      data = %{a: 1, b: 2}
 
+      reducer = fn {key, value}, acc ->
+        {:cont, Map.merge(acc, %{key => value + 1})}
+      end
+
+      result = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
+      assert result == %{a: 2, b: 3}
+    end
+
+    test "we can halt the reduce" do
+      data = %{a: 1, b: 2}
+
+      reducer = fn {_key, _value}, _acc ->
+        {:halt, {:error, "Oh no!"}}
+      end
+
+      result = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
+      assert result == {:error, "Oh no!"}
+    end
   end
 
   describe "map" do
@@ -95,6 +115,16 @@ defmodule MapImplTest do
       data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
       result = KeywordLens.map(data, [a: [a: [:a]]], &(&1 + 1))
       assert result == %{a: %{a: %{a: 2}, b: %{c: 1}, g: %{}}, f: %{}}
+    end
+
+    test "deep legs" do
+      data = %{a: %{b: 1, c: %{d: 3, e: 4}}, f: %{g: %{h: 5}}}
+      result = KeywordLens.map(data, [a: [:b, c: :d], f: [g: :h]], &(&1 + 1))
+      assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}, f: %{g: %{h: 6}}}
+
+      data = %{a: %{b: 1, c: %{d: 3, e: 4}}, f: %{b: %{c: 5}}}
+      result = KeywordLens.map(data, [a: [:b, c: :d], f: [b: :c]], &(&1 + 1))
+      assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}, f: %{b: %{c: 6}}}
     end
 
     test "Other keys Error" do

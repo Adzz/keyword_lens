@@ -55,6 +55,10 @@ KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
 %{a: %{b: 2}}
 ```
 
+### Can't I just use get_in / update_in
+
+You could, sort of. But the syntax becomes very.... verbose:
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
