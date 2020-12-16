@@ -150,7 +150,11 @@ defimpl KeywordLens, for: Map do
   end
 
   # Here we have gotten to the end of one path, so we need to finish it off, then
-  # move to the next path.
+  # move to the next path. The gotcha is that we need to go arbitrarily down, then
+  # back up to the current point so that we can go to the next branch. To do that
+  # we need some way of knowing what point we are trying to get back to, and we
+  # need to be able to step forward and step backwards. So we need to step forwards
+  # then reverse enough to get to where we are now.
   defp lens_in([key | rest], [current | acc], data, data_rest, fun) do
     fetched = Map.fetch!(data, key)
     remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
