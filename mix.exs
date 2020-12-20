@@ -5,7 +5,7 @@ defmodule KeywordLens.MixProject do
     [
       app: :keyword_lens,
       version: "0.1.0",
-      elixir: "~> 1.11",
+      elixir: "~> 1.10",
       description: description(),
       package: package(),
       start_permanent: Mix.env() == :prod,
