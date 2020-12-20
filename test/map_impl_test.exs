@@ -261,15 +261,19 @@ defmodule MapImplTest do
       assert result == %{1 => 2, 2 => 3}
     end
 
-    test "other keys" do
+    test "other keys - map" do
       data = %{1 => %{2 => %{3 => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{1, {2, 3}}], &(&1 + 1))
       assert result == %{1 => %{2 => %{3 => 8}}, %{} => 2}
+    end
 
+    test "other keys - list key" do
       data = %{1 => %{2 => %{[] => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{1, {2, []}}], &(&1 + 1))
       assert result == %{1 => %{2 => %{[] => 8}}, %{} => 2}
+    end
 
+    test "other keys - mixed" do
       data = %{{1, 2} => %{2 => %{[] => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{{1, 2}, {2, []}}], &(&1 + 1))
       assert result == %{%{} => 2, {1, 2} => %{2 => %{[] => 8}}}
