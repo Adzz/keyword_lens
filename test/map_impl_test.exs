@@ -3,6 +3,20 @@ defmodule MapImplTest do
   doctest KeywordLens
 
   describe "reduce_while" do
+    # test "does this work?" do
+    #   data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+    #   reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
+    #   result = KeywordLens.reduce_while(data, [state: [params: :price, other: :thing]], %{}, reducer)
+    #   assert result == %{state: %{other: %{thing: 2}, params: %{price: 11}}}
+    # end
+
+    test "Does half this work?" do
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+      reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
+      result = KeywordLens.reduce_while(data, [state: [params: :price]], %{}, reducer)
+      assert result == %{price: 11}
+    end
+
     test "We can reduce a map successfully" do
       data = %{a: 1, b: 2}
 
@@ -32,16 +46,16 @@ defmodule MapImplTest do
 
       result =
         KeywordLens.map_while(data, [state: [params: :price, other: :thing]], fn x ->
-          {:cont, IO.inspect(x, limit: :infinity, label: "XX") + 1}
+          {:cont, x + 1}
         end)
 
-      assert result == %{a: 2, b: 3}
+      assert result == %{state: %{other: %{thing: 2}, params: %{price: 11}}}
+    end
 
+    test "Does half this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
-
       result = KeywordLens.map_while(data, [state: [params: :price]], &{:cont, &1 + 1})
-
-      assert result == %{a: 2, b: 3}
+      assert result == %{state: %{other: %{thing: 1}, params: %{price: 11}}}
     end
 
     test "we can map without a stop like normal" do
@@ -141,7 +155,12 @@ defmodule MapImplTest do
 
     test "Inner map key the same as outer map key" do
       data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
-      result = KeywordLens.map_while(data, [a: [b: [:c]]], &{:cont, &1 + 1})
+
+      result =
+        KeywordLens.map_while(data, [a: [b: [:c]]], fn x ->
+          {:cont, x + 1}
+        end)
+
       assert result == %{a: %{a: %{a: 1}, b: %{c: 2}, g: %{}}, f: %{}}
 
       data = %{f: %{}, a: %{a: %{a: 1}, g: %{}, b: %{c: 1}}}
@@ -195,6 +214,18 @@ defmodule MapImplTest do
   end
 
   describe "map" do
+    test "does this work?" do
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+      result = KeywordLens.map(data, [state: [params: :price, other: :thing]], &(&1 + 1))
+      assert result == %{state: %{other: %{thing: 2}, params: %{price: 11}}}
+    end
+
+    test "Does half this work?" do
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+      result = KeywordLens.map(data, [state: [params: :price]], &(&1 + 1))
+      assert result == %{state: %{other: %{thing: 1}, params: %{price: 11}}}
+    end
+
     test "We can do the simplest list" do
       data = %{a: 1, b: 2}
       result = KeywordLens.map(data, [:a, :b], &(&1 + 1))
