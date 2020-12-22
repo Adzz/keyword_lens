@@ -82,7 +82,7 @@ by adding `keyword_lens` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:keyword_lens, "~> 0.1.0"}
+    {:keyword_lens, "~> 0.1.1"}
   ]
 end
 ```
