@@ -39,7 +39,7 @@ It turns out we can do that, but we have to change what happens when we do our n
 we have to change what our seen pile looks like because it needs to store enough information
 such that when we step backwards we can restore the original map with no information loss.
 
-Or seen pile essentially becomes our map, inside out. Or first step looks like this:
+Our seen pile essentially becomes our map, inside out. Or first step looks like this:
  rest,   focus,                  seen
  %{},    %{b: %{c: :d}, e: :f},  %{a: %{}, %{g: :h}}
 
@@ -117,3 +117,23 @@ Great. But now let's consider a nested list:
 Again this all works as per, but what we want is to reach into the various nestings and do shit
 I suppose implicit in the list iteration is that an item, when mapping is returned back to
 where it was.
+
+
+This is all reduce_subset. You could combine that with a window type thing, such that each iteration
+the function received N elements from the subset of the tree at a time. Imagine:
+
+map_subset_window([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3, [0, 3, 6], fn {a, b, c} ->
+
+end)
+
+
+
+
+
+
+
+
+
+
+
+
