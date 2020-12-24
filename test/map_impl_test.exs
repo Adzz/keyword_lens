@@ -3,12 +3,19 @@ defmodule MapImplTest do
   doctest KeywordLens
 
   describe "reduce_while" do
-    # test "does this work?" do
-    #   data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
-    #   reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
-    #   result = KeywordLens.reduce_while(data, [state: [params: :price, other: :thing]], %{}, reducer)
-    #   assert result == %{state: %{other: %{thing: 2}, params: %{price: 11}}}
-    # end
+    test "does this work?" do
+      data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
+      reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
+
+      result =
+        KeywordLens.reduce_while(data, [state: [params: :price, other: :thing]], %{}, reducer)
+
+      assert result == %{price: 11, thing: 2}
+      # This is map:
+      # %{state: %{other: %{thing: 2}, params: %{price: 11}}}
+      # Reduce just collects up the values at the ends of the lists.... so yea
+      # %{price: 11, thing: 2}
+    end
 
     test "Does half this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
@@ -214,6 +221,12 @@ defmodule MapImplTest do
   end
 
   describe "map" do
+    # MAP SHOULD GET THE KEY AND VALUE PASSED TO THE FUN. oh shit.
+    # now we are all in the territory of maps returning lists.
+    # We either always preserve keys as we do here, or we have to
+    # pass key and value to the fun and collect into a list.
+    # We get to reuse collect though I think. But do we have to then
+    # implement Enum.into etc for this? Where does it end...
     test "does this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       result = KeywordLens.map(data, [state: [params: :price, other: :thing]], &(&1 + 1))

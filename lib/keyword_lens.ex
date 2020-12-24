@@ -48,6 +48,11 @@ defprotocol KeywordLens do
       iex> KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
       %{a: %{b: 2}}
   """
+  # As implemented right now, map takes a map and returns a map. That's problematic cause
+  # the fun never gets the keys. Is that an issue? Who knows but it's different from elixir core
+  # So we could instead do a map that gets the Key / Fun and returns a list of key fun,
+  # then implement a deep Into fun I guess. but we'd have no way of knowing if the thing
+  # nested or the value was what it is.... AHH.
   def map(data, keyword_lens, fun)
   def map_while(data, keyword_lens, fun)
   def reduce_while(data, keyword_lens, acc, fun)

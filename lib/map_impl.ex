@@ -6,12 +6,15 @@ defimpl KeywordLens, for: Map do
   @doc """
   Calls the reducing function with the value pointed to by each of the lenses encoded within the
   keyword_lens.
+
   ### Examples
+
       iex> reducer = fn {key, value}, acc ->
       ...>   {:cont, Map.merge(acc, %{key => value + 1})}
       ...> end
       ...> KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
       %{a: 2, b: 3}
+
       iex> reducer = fn {_key, _value}, _acc ->
       ...>   {:halt, {:error, "Oh no!"}}
       ...> end
@@ -19,28 +22,139 @@ defimpl KeywordLens, for: Map do
       {:error, "Oh no!"}
   """
   def reduce_while(data, keyword_lens, accumulator, fun) do
-    Enum.reduce_while(keyword_lens, accumulator, fn lens, acc ->
-      paths = KeywordLens.Helpers.expand(lens)
+    # THERE ARE TWO OPTIONS HERE WE NEED TO BENCHMARK
+    # 1. do lens_in but at the end of the paths call the fun with acc.
 
-      result =
-        Enum.reduce_while(paths, acc, fn path, accum ->
-          lens_in_while(path, [], data, accum, %{}, fun)
-        end)
-
-      {:cont, result}
-    end)
+    case lens_in_reduce(keyword_lens, data, accumulator, fun) do
+      {:cont, {_, result}} -> result
+      {:halt, result} -> result
+    end
   end
 
-  defp lens_in_while([], [key | _], data, accumulator, _data_rest, fun) do
-    fun.({key, data}, accumulator)
+  defp lens_in_reduce(paths, data, acc, fun), do: lens_in_reduce(paths, [[]], data, %{}, acc, fun)
+
+  defp lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+       when is_list(value) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
-  defp lens_in_while([key | rest], visited, data, accumulator, data_rest, fun)
-       when is_map(data) do
-    fetched = Map.fetch!(data, key)
-    remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-    lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
+  defp lens_in_reduce({key, value = {_, _}}, [current | acc], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
+
+  defp lens_in_reduce({key, value}, [acc | _], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    {fetched, remaining} = step_forward(fetched, value, remaining)
+
+    case fun.({value, fetched}, accu) do
+      # backtrack([value, key | acc], [], result, remaining)
+      {:cont, result} -> backtrack_reduce([value, key | acc], [], result, remaining, result)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
+  end
+
+  defp lens_in_reduce([{key, value}], [current | acc], data, data_rest, accu, fun)
+       when is_list(value) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
+  end
+
+  defp lens_in_reduce([{key, value = {_, _}}], [current | acc], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
+  end
+
+  defp lens_in_reduce([{key, value}], [current | _], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+    {fetched, remaining} = step_forward(fetched, value, remaining)
+
+    case fun.({value, fetched}, accu) do
+      # backtrack([value, key | current], [], result, remaining)
+      {:cont, result} -> backtrack_reduce([value, key | current], [], result, remaining, result)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
+  end
+
+  defp lens_in_reduce([key], [current | _], data, data_rest, acc, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+
+    case fun.({key, fetched}, acc) do
+      # The result IS the acc here....
+      # backtrack([key | current], [], result, remaining)
+      {:cont, result} -> backtrack_reduce([key | current], [], result, remaining, result)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
+  end
+
+  defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
+    {:cont, {leg, accum}} =
+      lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+
+    data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
+    lens_in_reduce(next, [current | [[key | current] | acc]], data, data_rest, accum, fun)
+  end
+
+  defp lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+
+    with {:cont, result} <- fun.({key, fetched}, accu),
+         {:cont, {dataa, accum}} <-
+           backtrack_reduce([key | current], [], result, remaining, result) do
+      data = Enum.reduce(Enum.reverse(current), dataa, &Map.fetch!(&2, &1))
+      lens_in_reduce(rest, [current | [[key | current] | acc]], data, data_rest, accum, fun)
+    else
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
+  end
+
+  defp lens_in_reduce(key, [acc | _], data, data_rest, accu, fun) do
+    {fetched, remaining} = step_forward(data, key, data_rest)
+
+    case fun.({key, fetched}, accu) do
+      # backtrack([key | acc], [], result, remaining)
+      {:cont, result} -> backtrack_reduce([key | acc], [], result, remaining, result)
+      halt = {:halt, _} -> halt
+      _ -> raise KeywordLens.InvalidReducingFunctionError
+    end
+  end
+
+  defp backtrack_reduce([], _visited, data, data_rest, acc) do
+    {:cont, {Map.merge(data, data_rest), acc}}
+  end
+
+  defp backtrack_reduce([key | rest], visited, data, data_rest, acc) do
+    data = Map.merge(Map.delete(data_rest, key), %{key => data})
+    backtrack_reduce(rest, [key | visited], data, Map.fetch!(data_rest, key), acc)
+  end
+
+  # 2. Expand paths and then do the work.
+  # If we get the expanding of paths working this is an alternative approach to benchmark
+  # against:
+  # Enum.reduce_while(keyword_lens, accumulator, fn lens, acc ->
+  # paths = KeywordLens.Helpers.expand(lens)
+  # result =
+  #   Enum.reduce_while(paths, acc, fn path, accum ->
+  #     lens_in_while(path, [], data, accum, %{}, fun)
+  #   end)
+  # {:cont, result}
+  # end)
+
+  # defp lens_in_while([], [key | _], data, accumulator, _data_rest, fun) do
+  #   fun.({key, data}, accumulator)
+  # end
+
+  # defp lens_in_while([key | rest], visited, data, accumulator, data_rest, fun)
+  #      when is_map(data) do
+  #   fetched = Map.fetch!(data, key)
+  #   remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
+  #   lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
+  # end
 
   @doc """
   Maps until the mapping fun returns {:halt, term}, or until we reach the end of the data being
