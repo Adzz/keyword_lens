@@ -17,6 +17,14 @@ defmodule MapImplTest do
       # %{price: 11, thing: 2}
     end
 
+    test "mixed keys and stuff" do
+      data = %{ :a => 1, "b" => 2, :c => 3}
+      lens = [:a, "b", :c]
+      reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
+      result = KeywordLens.reduce_while(data, lens, %{}, reducer)
+      assert result == %{:a => 2, :c => 4, "b" => 3}
+    end
+
     test "Does half this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
