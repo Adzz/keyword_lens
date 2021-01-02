@@ -260,7 +260,9 @@ defimpl KeywordLens, for: Map do
   def step_forward(data, key, data_rest \\ %{}) do
     fetched =
       try do
-        # Do we fetch or get? Can we pick each one?
+        # Do we fetch or get? Can we have an API to pick each one?
+        # If you do this then we get autovivication which IS PRETTY WILD.
+        # Map.get(data, key, %{})
         Map.fetch!(data, key)
       rescue
         BadMapError -> raise KeywordLens.InvalidPathError

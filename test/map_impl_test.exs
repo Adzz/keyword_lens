@@ -243,11 +243,10 @@ defmodule MapImplTest do
       # that doesn't mean it can't raise though, it will still raise if the path is pointing
       # to something that isn't there. it's just if we try to get
       assert_raise(KeyError, "key :a not found in: %{}", fn ->
-        KeywordLens.map(%{}, [:a], & &1) == 1
+        KeywordLens.map(%{}, [:a], & &1)
       end)
-
       assert_raise(KeyError, "key :b not found in: %{}", fn ->
-        KeywordLens.map(%{a: %{}}, [a: :b], & &1) == 1
+        KeywordLens.map(%{a: %{}}, [a: :b], & &1)
       end)
     end
 
