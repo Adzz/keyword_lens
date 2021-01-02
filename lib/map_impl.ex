@@ -260,7 +260,9 @@ defimpl KeywordLens, for: Map do
   def step_forward(data, key, data_rest \\ %{}) do
     fetched =
       try do
-        Map.fetch!(data, key)
+        # Do we fetch or get? Or do we sidestep that and
+        # do the into stuff? Map gets key and value.
+        Map.get(data, key)
       rescue
         BadMapError -> raise KeywordLens.InvalidPathError
       end

@@ -40,7 +40,7 @@ You can use `KeywordLens.Helpers.expand/1` to see which unique lenses are encode
 
 ```elixir
 KeywordLens.Helpers.expand([a: :b])
-[:a, :b]
+[[:a, :b]]
 
 KeywordLens.Helpers.expand([a: [b: [:c, :d]]])
 [[:a, :b, :c], [:a, :b, :d]]
@@ -72,6 +72,41 @@ KeywordLens.map(%{a: %{b: 1}, c: %{d: 1, e: 1}}, [a: :b, c: [:d, :e]], & &1+1)
 %{a: %{b: 2}, c: %{d: 2, e: 2}}
 ```
 
+Additionally get_in will return nil if you provide a path that doesn't point to a value:
+
+```elixir
+Kernel.get_in(%{}, [:a])
+nil
+```
+
+This can be fine, but can make it tricky to distinguish between "the path you gave me doesn't point to a value" and "the path you gave me points to a value, and that value is nil":
+
+```elixir
+Kernel.get_in(%{}, [:a])
+nil
+
+Kernel.get_in(%{a: nil}, [:a])
+nil
+```
+
+That might not matter to you. KeywordLens takes the following approach for now:
+
+```elixir
+KeywordLens.map(%{}, [:a], & &1)
+** (KeyError) key :a not found in: %{}
+
+KeywordLens.map(%{a: nil}, [:a], & &1)
+%{a: nil}
+
+KeywordLens.map(%{a: 1}, [a: :b], & &1)
+** (KeywordLens.InvalidPathError) a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check.
+```
+
+It's possible I may change this in the future. For example it might be nice to have a get_in like variant which returns nil when the value is not there.
+
+## Benchmarks
+
+TODO.
 
 
 ## Installation

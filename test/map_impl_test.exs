@@ -198,18 +198,18 @@ defmodule MapImplTest do
       data = %{1 => 1, [] => []}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map_while(data, [{1, {[], :a}}], &{:cont, &1 + 1})
       end)
     end
 
-    test "When the path is too long" do
+    test "When the path is wrong" do
       data = %{a: 1}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map_while(data, [a: [c: :d]], &{:cont, &1 + 1})
@@ -220,7 +220,7 @@ defmodule MapImplTest do
       data = %{a: %{b: 1, c: []}}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map_while(data, [a: [c: :d]], &{:cont, &1 + 1})
@@ -235,6 +235,22 @@ defmodule MapImplTest do
     # pass key and value to the fun and collect into a list.
     # We get to reuse collect though I think. But do we have to then
     # implement Enum.into etc for this? Where does it end...
+
+    test "When the map doesn't have the key" do
+      # The issue is sometimes we may want to nil it.
+      # get_in do we need ! variants of everything?
+      # map! vs map
+      # that doesn't mean it can't raise though, it will still raise if the path is pointing
+      # to something that isn't there. it's just if we try to get
+      assert_raise(KeyError, "key :a not found in: %{}", fn ->
+        KeywordLens.map(%{}, [:a], & &1) == 1
+      end)
+
+      assert_raise(KeyError, "key :b not found in: %{}", fn ->
+        KeywordLens.map(%{a: %{}}, [a: :b], & &1) == 1
+      end)
+    end
+
     test "does this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       result = KeywordLens.map(data, [state: [params: :price, other: :thing]], &(&1 + 1))
@@ -356,18 +372,18 @@ defmodule MapImplTest do
       data = %{1 => 1, [] => []}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map(data, [{1, {[], :a}}], &(&1 + 1))
       end)
     end
 
-    test "When the path is too long" do
+    test "When the path doesn't point to a map" do
       data = %{a: 1}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
@@ -378,7 +394,7 @@ defmodule MapImplTest do
       data = %{a: %{b: 1, c: []}}
 
       message =
-        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is too long, please check"
+        "a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check."
 
       assert_raise(KeywordLens.InvalidPathError, message, fn ->
         KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
