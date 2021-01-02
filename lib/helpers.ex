@@ -13,50 +13,61 @@ defmodule KeywordLens.Helpers do
       [[:a, :b]]
 
       iex> KeywordLens.Helpers.expand([a: [b: [:c, :d]]])
-      [[:a, :b, :d], [:a, :b, :c]]
+      [[:a, :b, :c], [:a, :b, :d]]
+
+      iex> KeywordLens.Helpers.expand([a: [b: [c: :d, e: :f]]])
+      [[:a, :b, :c, :d], [:a, :b, :e, :f]]
 
       iex> KeywordLens.Helpers.expand([a: [:z, b: [:c, d: :e]]])
-      [[:a, :b, :d, :e], [:a, :b, :c], [:a, :z]]
+      [[:a, :z], [:a, :b, :c], [:a, :b, :d, :e]]
 
       iex> KeywordLens.Helpers.expand([:a, "b", :c])
-      [[:c], ["b"], [:a]]
-
+      [[:a], ["b"], [:c]]
   """
   def expand(paths) do
-    expand(paths, [[]])
+    lens_in_reduce(paths, [[]])
+    |> Enum.map(&Enum.reverse/1)
+    |> Enum.reverse
   end
 
-  defp expand({key, value = {_, _}}, [current | acc]) when not is_list(value) do
-    # TODO: We should probably create these in reverse order ? Does that change anything
-    # For this helper it's fine I think. IRL in the map function we do optimizations.
-    expand(value, [current ++ [key] | acc])
+  defp lens_in_reduce({key, value}, [current | acc]) when is_list(value) do
+    lens_in_reduce(value, [[key | current] | acc])
   end
 
-  defp expand({key, value}, [acc | _]) when not is_list(value) do
-    [acc ++ [key, value]]
+  defp lens_in_reduce({key, value = {_, _}}, [current | acc]) do
+    lens_in_reduce(value, [[key | current] | acc])
   end
 
-  defp expand({key, value}, [current | acc]) when is_list(value) do
-    expand(value, [current ++ [key] | acc])
+  defp lens_in_reduce({key, value}, [acc | rest]) do
+    [[value, key | acc] | rest]
   end
 
-  defp expand([{key, value}], [current | acc]) when is_list(value) do
-    expand(value, [current ++ [key] | acc])
+  defp lens_in_reduce([{key, value}], [current | acc]) when is_list(value) do
+    lens_in_reduce(value, [[key | current] | acc])
   end
 
-  defp expand([{key, value}], [current | acc]) when not is_list(value) do
-    [current ++ [key, value] | acc]
+  defp lens_in_reduce([{key, value = {_, _}}], [current | acc]) do
+    lens_in_reduce(value, [[key | current] | acc])
   end
 
-  defp expand([value], [current | acc]) do
-    [current ++ [value] | acc]
+  defp lens_in_reduce([{key, value}], [current | rest]) do
+    [[value, key | current] | rest]
   end
 
-  defp expand([value | rest], [current | acc]) do
-    expand(rest, [current | [current ++ [value] | acc]])
+  defp lens_in_reduce([key], [current | rest]) do
+    [[key | current] | rest]
   end
 
-  defp expand(value, [acc | _]) do
-    [acc ++ [value]]
+  defp lens_in_reduce([{key, value} | next], [current | acc]) do
+    visited = lens_in_reduce({key, value}, [current | acc])
+    lens_in_reduce(next, [current | visited])
+  end
+
+  defp lens_in_reduce([key | rest], [current | acc]) do
+    lens_in_reduce(rest, [current | [[key | current] | acc]])
+  end
+
+  defp lens_in_reduce(key, [acc | rest]) do
+    [[key | acc] | rest]
   end
 end

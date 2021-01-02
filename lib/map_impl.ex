@@ -24,7 +24,28 @@ defimpl KeywordLens, for: Map do
   def reduce_while(data, keyword_lens, accumulator, fun) do
     # THERE ARE TWO OPTIONS HERE WE NEED TO BENCHMARK
     # 1. do lens_in but at the end of the paths call the fun with acc.
+    # 2. Expand paths and then do the work.
+    # If we get the expanding of paths working this is an alternative approach to benchmark
+    # against:
+    # Enum.reduce_while(keyword_lens, accumulator, fn lens, acc ->
+    # paths = KeywordLens.Helpers.expand(lens)
+    # result =
+    #   Enum.reduce_while(paths, acc, fn path, accum ->
+    #     lens_in_while(path, [], data, accum, %{}, fun)
+    #   end)
+    # {:cont, result}
+    # end)
 
+    # defp lens_in_while([], [key | _], data, accumulator, _data_rest, fun) do
+    #   fun.({key, data}, accumulator)
+    # end
+
+    # defp lens_in_while([key | rest], visited, data, accumulator, data_rest, fun)
+    #      when is_map(data) do
+    #   fetched = Map.fetch!(data, key)
+    #   remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
+    #   lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
+    # end
     case lens_in_reduce(keyword_lens, data, accumulator, fun) do
       {:cont, {_, result}} -> result
       {:halt, result} -> result
@@ -49,7 +70,6 @@ defimpl KeywordLens, for: Map do
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
     case fun.({value, fetched}, accu) do
-      # backtrack([value, key | acc], [], result, remaining)
       {:cont, result} -> backtrack_reduce([value, key | acc], [], result, remaining, result)
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
@@ -72,7 +92,6 @@ defimpl KeywordLens, for: Map do
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
     case fun.({value, fetched}, accu) do
-      # backtrack([value, key | current], [], result, remaining)
       {:cont, result} -> backtrack_reduce([value, key | current], [], result, remaining, result)
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
@@ -83,8 +102,6 @@ defimpl KeywordLens, for: Map do
     {fetched, remaining} = step_forward(data, key, data_rest)
 
     case fun.({key, fetched}, acc) do
-      # The result IS the acc here....
-      # backtrack([key | current], [], result, remaining)
       {:cont, result} -> backtrack_reduce([key | current], [], result, remaining, result)
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
@@ -94,9 +111,8 @@ defimpl KeywordLens, for: Map do
   defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
     {:cont, {leg, accum}} =
       lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
-
     data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
-    lens_in_reduce(next, [current | [[key | current] | acc]], data, data_rest, accum, fun)
+    lens_in_reduce(next, [current | [[value, key | current] | acc]], data, data_rest, accum, fun)
   end
 
   defp lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
@@ -117,7 +133,6 @@ defimpl KeywordLens, for: Map do
     {fetched, remaining} = step_forward(data, key, data_rest)
 
     case fun.({key, fetched}, accu) do
-      # backtrack([key | acc], [], result, remaining)
       {:cont, result} -> backtrack_reduce([key | acc], [], result, remaining, result)
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
@@ -132,29 +147,6 @@ defimpl KeywordLens, for: Map do
     data = Map.merge(Map.delete(data_rest, key), %{key => data})
     backtrack_reduce(rest, [key | visited], data, Map.fetch!(data_rest, key), acc)
   end
-
-  # 2. Expand paths and then do the work.
-  # If we get the expanding of paths working this is an alternative approach to benchmark
-  # against:
-  # Enum.reduce_while(keyword_lens, accumulator, fn lens, acc ->
-  # paths = KeywordLens.Helpers.expand(lens)
-  # result =
-  #   Enum.reduce_while(paths, acc, fn path, accum ->
-  #     lens_in_while(path, [], data, accum, %{}, fun)
-  #   end)
-  # {:cont, result}
-  # end)
-
-  # defp lens_in_while([], [key | _], data, accumulator, _data_rest, fun) do
-  #   fun.({key, data}, accumulator)
-  # end
-
-  # defp lens_in_while([key | rest], visited, data, accumulator, data_rest, fun)
-  #      when is_map(data) do
-  #   fetched = Map.fetch!(data, key)
-  #   remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
-  #   lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
-  # end
 
   @doc """
   Maps until the mapping fun returns {:halt, term}, or until we reach the end of the data being
@@ -239,7 +231,7 @@ defimpl KeywordLens, for: Map do
   defp lens_in([{key, value} | next], [current | acc], data, data_rest, fun) do
     {:cont, leg} = lens_in({key, value}, [current | acc], data, data_rest, fun)
     data = Enum.reduce(Enum.reverse(current), leg, fn key, acc -> Map.fetch!(acc, key) end)
-    lens_in(next, [current | [[key | current] | acc]], data, data_rest, fun)
+    lens_in(next, [current | [[value, key | current] | acc]], data, data_rest, fun)
   end
 
   defp lens_in([key | rest], [current | acc], data, data_rest, fun) do
