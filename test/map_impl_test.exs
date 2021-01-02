@@ -18,7 +18,7 @@ defmodule MapImplTest do
     end
 
     test "mixed keys and stuff" do
-      data = %{ :a => 1, "b" => 2, :c => 3}
+      data = %{:a => 1, "b" => 2, :c => 3}
       lens = [:a, "b", :c]
       reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
       result = KeywordLens.reduce_while(data, lens, %{}, reducer)
@@ -237,6 +237,15 @@ defmodule MapImplTest do
     # implement Enum.into etc for this? Where does it end...
 
     test "When the map doesn't have the key" do
+      KeywordLens.map(%{a: %{}}, [:a, b: :c], & &1)
+      |> IO.inspect(limit: :infinity, label: "")
+
+      KeywordLens.map(%{a: %{}}, [:a, b: :c], fn _ -> 1 end)
+      |> IO.inspect(limit: :infinity, label: "")
+
+      KeywordLens.map(%{a: %{}}, [:a, b: :c], fn _ -> %{} end)
+      |> IO.inspect(limit: :infinity, label: "")
+
       # The issue is sometimes we may want to nil it.
       # get_in do we need ! variants of everything?
       # map! vs map
@@ -245,6 +254,7 @@ defmodule MapImplTest do
       assert_raise(KeyError, "key :a not found in: %{}", fn ->
         KeywordLens.map(%{}, [:a], & &1)
       end)
+
       assert_raise(KeyError, "key :b not found in: %{}", fn ->
         KeywordLens.map(%{a: %{}}, [a: :b], & &1)
       end)

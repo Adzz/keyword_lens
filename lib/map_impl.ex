@@ -111,6 +111,7 @@ defimpl KeywordLens, for: Map do
   defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
     {:cont, {leg, accum}} =
       lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+
     data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
     lens_in_reduce(next, [current | [[value, key | current] | acc]], data, data_rest, accum, fun)
   end
@@ -262,8 +263,8 @@ defimpl KeywordLens, for: Map do
       try do
         # Do we fetch or get? Can we have an API to pick each one?
         # If you do this then we get autovivication which IS PRETTY WILD.
-        # Map.get(data, key, %{})
-        Map.fetch!(data, key)
+        Map.get(data, key, %{})
+        # Map.fetch!(data, key)
       rescue
         BadMapError -> raise KeywordLens.InvalidPathError
       end
