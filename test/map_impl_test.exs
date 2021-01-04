@@ -454,7 +454,7 @@ defmodule MapImplTest do
 
         result =
           Enum.reduce(generated_lists, map, fn lens, acc ->
-            Map.merge(acc, KeywordLens.map(acc, lens, &(&1 * 2)))
+            KeywordLens.map(acc, lens, &(&1 * 2))
           end)
 
         oracle =
@@ -462,7 +462,7 @@ defmodule MapImplTest do
             KeywordLens.Helpers.expand(lens)
             |> Enum.reduce(acc, fn path, accum ->
               {_, res} = get_and_update_in(accum, path, &{&1, &1 * 2})
-              Map.merge(accum, res)
+              res
             end)
           end)
 
@@ -475,7 +475,7 @@ defmodule MapImplTest do
     KeywordLens.Helpers.expand(lens)
     |> Enum.reduce(data, fn path, acc ->
       {_, res} = get_and_update_in(acc, path, &{&1, &1 + 1})
-      Map.merge(acc, res)
+      res
     end)
   end
 end

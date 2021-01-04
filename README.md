@@ -106,8 +106,51 @@ It's possible I may change this in the future. For example it might be nice to h
 
 ## Benchmarks
 
-TODO.
+TODO: finish
 
+Let's take the `map` function as an example. It takes a data structure, a keyword lens, and a function to apply to each of the values pointed to by the keyword lens. There are two approaches we could have taken to implement this.
+
+The simplest is to expand the keyword lens into all of the paths it encodes, then use get_in / update_in to replace the values at the ends of those paths:
+
+```elixir
+data = %{a: %{b: 1, c: %{d: 3, e: 4}}}
+keyword_lens = [a: [:b, c: [:d, :e]]]
+# This keyword_lens would expand to these paths:
+paths = [[:a, :b], [:a, :c, :d], [:a, :c, :e]]
+# Now we could iterate through each of them updating the values at the end:
+Enum.reduce(paths, data, fn path, acc ->
+  value = get_in(acc, path)
+  update_in(acc, path, value + 1)
+end)
+```
+
+This is great and fast because elixir can make get_in/update_in a fast operation.
+
+The other way is to step through each point in the lens in turn. Doing that requires a zipper like traversal so we can keep our memory footprint reasonable. But it allows us to do things like end the traversal early if we wish. That means we can implement a map_while, which is not available in the get_in / update_in approach.
+
+
+**Aside what is a zipper?**
+
+It's a way of traversing a structure without losing the parts you have visited, meaning you can step back or forwards through the traversal trivially. Let's take a list as an example
+```
+[1, 2, 3, 4, 5]
+```
+As we step through this we could break it into two halves, one side would have the nodes we haven't seen the other the ones we have:
+```
+unseen = [2, 3, 4, 5]; seen = [1]
+```
+Stepping forward is about taking the head of unseen and putting it on the head of seen:
+```
+unseen = [3, 4, 5]; seen = [2, 1]
+unseen = [4, 5]; seen = [3, 2, 1]
+```
+Stepping backwards is the reverse:
+```
+unseen = [2, 3, 4, 5]; seen = [1]
+unseen = [1, 2, 3, 4, 5]; seen = []
+```
+
+TODO: expand this explanation.
 
 ## Installation
 
