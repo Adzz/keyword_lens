@@ -52,7 +52,9 @@ defimpl KeywordLens, for: Map do
     end
   end
 
-  defp lens_in_reduce(paths, data, acc, fun), do: lens_in_reduce(paths, [[]], data, %{}, acc, fun)
+  defp lens_in_reduce(paths, data, acc, fun) do
+    lens_in_reduce(paths, [[]], data, %{}, acc, fun)
+  end
 
   defp lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
        when is_list(value) do
@@ -111,6 +113,7 @@ defimpl KeywordLens, for: Map do
   defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
     {:cont, {leg, accum}} =
       lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+
     data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
     lens_in_reduce(next, [current | [[value, key | current] | acc]], data, data_rest, accum, fun)
   end
@@ -174,7 +177,9 @@ defimpl KeywordLens, for: Map do
     result
   end
 
-  defp lens_in(paths, data, fun), do: lens_in(paths, [[]], data, %{}, fun)
+  defp lens_in(paths, data, fun) do
+    lens_in(paths, [[]], data, %{}, fun)
+  end
 
   defp lens_in({key, value}, [current | acc], data, data_rest, fun) when is_list(value) do
     {fetched, remaining} = step_forward(data, key, data_rest)

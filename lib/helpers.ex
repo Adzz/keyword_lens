@@ -27,7 +27,7 @@ defmodule KeywordLens.Helpers do
   def expand(paths) do
     lens_in_reduce(paths, [[]])
     |> Enum.map(&Enum.reverse/1)
-    |> Enum.reverse
+    |> Enum.reverse()
   end
 
   defp lens_in_reduce({key, value}, [current | acc]) when is_list(value) do

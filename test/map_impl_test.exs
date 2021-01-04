@@ -1,5 +1,7 @@
 defmodule MapImplTest do
   use ExUnit.Case, async: true
+  use ExUnitProperties
+
   doctest KeywordLens
 
   describe "reduce_while" do
@@ -18,7 +20,7 @@ defmodule MapImplTest do
     end
 
     test "mixed keys and stuff" do
-      data = %{ :a => 1, "b" => 2, :c => 3}
+      data = %{:a => 1, "b" => 2, :c => 3}
       lens = [:a, "b", :c]
       reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
       result = KeywordLens.reduce_while(data, lens, %{}, reducer)
@@ -236,6 +238,14 @@ defmodule MapImplTest do
     # We get to reuse collect though I think. But do we have to then
     # implement Enum.into etc for this? Where does it end...
 
+    test "many top level components" do
+      data = %{a: %{b: 1}, c: %{d: 2}}
+      result = KeywordLens.map(data, [a: :b, c: :d], &(&1 + 1))
+      assert result == %{a: %{b: 2}, c: %{d: 3}}
+
+      assert result == the_other_way(data, a: :b, c: :d)
+    end
+
     test "When the map doesn't have the key" do
       # The issue is sometimes we may want to nil it.
       # get_in do we need ! variants of everything?
@@ -245,6 +255,7 @@ defmodule MapImplTest do
       assert_raise(KeyError, "key :a not found in: %{}", fn ->
         KeywordLens.map(%{}, [:a], & &1)
       end)
+
       assert_raise(KeyError, "key :b not found in: %{}", fn ->
         KeywordLens.map(%{a: %{}}, [a: :b], & &1)
       end)
@@ -254,96 +265,112 @@ defmodule MapImplTest do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       result = KeywordLens.map(data, [state: [params: :price, other: :thing]], &(&1 + 1))
       assert result == %{state: %{other: %{thing: 2}, params: %{price: 11}}}
+      assert result == the_other_way(data, state: [params: :price, other: :thing])
     end
 
     test "Does half this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       result = KeywordLens.map(data, [state: [params: :price]], &(&1 + 1))
       assert result == %{state: %{other: %{thing: 1}, params: %{price: 11}}}
+      assert result == the_other_way(data, state: [params: :price])
     end
 
     test "We can do the simplest list" do
       data = %{a: 1, b: 2}
       result = KeywordLens.map(data, [:a, :b], &(&1 + 1))
       assert result == %{a: 2, b: 3}
+      assert result == the_other_way(data, [:a, :b])
     end
 
     test "Three deep" do
       data = %{f: %{}, a: %{g: %{}, b: %{c: 1}}}
       result = KeywordLens.map(data, [a: [b: [:c]]], &(&1 + 1))
       assert result == %{f: %{}, a: %{g: %{}, b: %{c: 2}}}
+      assert result == the_other_way(data, a: [b: [:c]])
     end
 
     test "Three deep no extra" do
       data = %{a: %{b: %{c: 1}}}
       result = KeywordLens.map(data, [a: [b: [:c]]], &(&1 + 1))
       assert result == %{a: %{b: %{c: 2}}}
+      assert result == the_other_way(data, a: [b: [:c]])
     end
 
     test "We can do a simple list" do
       data = %{a: %{b: 1}}
       result = KeywordLens.map(data, [a: :b], &(&1 + 1))
       assert result == %{a: %{b: 2}}
+      assert result == the_other_way(data, a: :b)
     end
 
     test "We can do a less simple list" do
       data = %{a: %{b: 1, c: 2}}
       result = KeywordLens.map(data, [a: [:b, :c]], &(&1 + 1))
       assert result == %{a: %{b: 2, c: 3}}
+      assert result == the_other_way(data, a: [:b, :c])
     end
 
     test "We can do a less simple list nested again" do
       data = %{a: %{d: %{b: 1, c: 2}}}
       result = KeywordLens.map(data, [a: [d: [:b, :c]]], &(&1 + 1))
       assert result == %{a: %{d: %{b: 2, c: 3}}}
+      assert result == the_other_way(data, a: [d: [:b, :c]])
     end
 
     test "We can do an even less simple list" do
       data = %{a: %{b: 1, c: %{d: 3, e: 4}}}
       result = KeywordLens.map(data, [a: [:b, c: [:d, :e]]], &(&1 + 1))
       assert result == %{a: %{b: 2, c: %{d: 4, e: 5}}}
+      assert result == the_other_way(data, a: [:b, c: [:d, :e]])
     end
 
     test "We can do another less simple list" do
       data = %{a: %{b: 1, c: %{d: 3, e: 4}}}
       result = KeywordLens.map(data, [a: [:b, c: :d]], &(&1 + 1))
       assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}}
+      assert result == the_other_way(data, a: [:b, c: :d])
     end
 
     test "Sure why not" do
       data = %{a: %{b: 1, c: %{d: 3, e: 4}}}
       result = KeywordLens.map(data, [a: [:b, c: :d]], &(&1 + 1))
       assert result == %{a: %{b: 2, c: %{d: 4, e: 4}}}
+      assert result == the_other_way(data, a: [:b, c: :d])
     end
 
     test "string keys" do
       data = %{"a" => 1, "b" => 2}
       result = KeywordLens.map(data, ["a", "b"], &(&1 + 1))
       assert result == %{"a" => 2, "b" => 3}
+      assert result == the_other_way(data, ["a", "b"])
     end
 
     test "number keys" do
       data = %{1 => 1, 2 => 2}
       result = KeywordLens.map(data, [1, 2], &(&1 + 1))
       assert result == %{1 => 2, 2 => 3}
+      assert result == the_other_way(data, [1, 2])
     end
 
     test "other keys - map" do
       data = %{1 => %{2 => %{3 => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{1, {2, 3}}], &(&1 + 1))
       assert result == %{1 => %{2 => %{3 => 8}}, %{} => 2}
+      assert result == the_other_way(data, [{1, {2, 3}}])
     end
 
     test "other keys - list key" do
       data = %{1 => %{2 => %{[] => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{1, {2, []}}], &(&1 + 1))
       assert result == %{1 => %{2 => %{[] => 8}}, %{} => 2}
+      assert result == the_other_way(data, [{1, {2, []}}])
     end
 
     test "other keys - mixed" do
       data = %{{1, 2} => %{2 => %{[] => 7}}, %{} => 2}
       result = KeywordLens.map(data, [{{1, 2}, {2, []}}], &(&1 + 1))
       assert result == %{%{} => 2, {1, 2} => %{2 => %{[] => 8}}}
+      assert result == the_other_way(data, [{{1, 2}, {2, []}}])
     end
 
     test "Inner map key the same as outer map key" do
@@ -399,5 +426,56 @@ defmodule MapImplTest do
         KeywordLens.map(data, [a: [c: :d]], &(&1 + 1))
       end)
     end
+
+    @tag timeout: :infinity
+    test "property tests" do
+      check all(
+              generated_lists <-
+                StreamData.integer()
+                |> StreamData.keyword_of()
+                |> StreamData.keyword_of(),
+              default_map <-
+                StreamData.map_of(
+                  StreamData.integer(),
+                  StreamData.map_of(StreamData.integer(), StreamData.boolean())
+                )
+            ) do
+        generated_list = generated_lists |> Enum.map(&KeywordLens.Helpers.expand/1)
+
+        map =
+          Enum.reduce(generated_list, %{}, fn p, acc ->
+            Map.merge(
+              acc,
+              Enum.reduce(p, acc, fn z, accum ->
+                put_in(accum, Enum.map(z, &Access.key(&1, default_map)), 42)
+              end)
+            )
+          end)
+
+        result =
+          Enum.reduce(generated_lists, map, fn lens, acc ->
+            Map.merge(acc, KeywordLens.map(acc, lens, &(&1 * 2)))
+          end)
+
+        oracle =
+          Enum.reduce(generated_lists, map, fn lens, acc ->
+            KeywordLens.Helpers.expand(lens)
+            |> Enum.reduce(acc, fn path, accum ->
+              {_, res} = get_and_update_in(accum, path, &{&1, &1 * 2})
+              Map.merge(accum, res)
+            end)
+          end)
+
+        assert result == oracle
+      end
+    end
+  end
+
+  def the_other_way(data, lens) do
+    KeywordLens.Helpers.expand(lens)
+    |> Enum.reduce(data, fn path, acc ->
+      {_, res} = get_and_update_in(acc, path, &{&1, &1 + 1})
+      Map.merge(acc, res)
+    end)
   end
 end
