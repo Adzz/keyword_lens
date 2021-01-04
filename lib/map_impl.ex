@@ -52,7 +52,9 @@ defimpl KeywordLens, for: Map do
     end
   end
 
-  defp lens_in_reduce(paths, data, acc, fun), do: lens_in_reduce(paths, [[]], data, %{}, acc, fun)
+  defp lens_in_reduce(paths, data, acc, fun) do
+    lens_in_reduce(paths, [[]], data, %{}, acc, fun)
+  end
 
   defp lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
        when is_list(value) do

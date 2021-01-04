@@ -433,38 +433,40 @@ defmodule MapImplTest do
               generated_lists <-
                 StreamData.integer()
                 |> StreamData.keyword_of()
-                |> StreamData.keyword_of()
-                |> StreamData.keyword_of()
+                |> StreamData.keyword_of(),
+              default_map <-
+                StreamData.map_of(
+                  StreamData.integer(),
+                  StreamData.map_of(StreamData.integer(), StreamData.boolean())
+                )
             ) do
         generated_list = generated_lists |> Enum.map(&KeywordLens.Helpers.expand/1)
-
-        # [zX: [s2S: [zML: 1, B7Y: -1], NCJ: []]]
-        # %{zX: %{NCJ: %{[] => 42}, s2S: %{B7Y: %{-1 => 42}, zML: %{1 => 42}}}}
 
         map =
           Enum.reduce(generated_list, %{}, fn p, acc ->
             Map.merge(
               acc,
-              Enum.reduce(p, %{}, fn z, accum ->
-                put_in(accum, Enum.map(z, &Access.key(&1, %{})), 42)
+              Enum.reduce(p, acc, fn z, accum ->
+                put_in(accum, Enum.map(z, &Access.key(&1, default_map)), 42)
               end)
             )
           end)
 
-        t =
+        result =
           Enum.reduce(generated_lists, map, fn lens, acc ->
             Map.merge(acc, KeywordLens.map(acc, lens, &(&1 * 2)))
           end)
 
-        o =
+        oracle =
           Enum.reduce(generated_lists, map, fn lens, acc ->
-            KeywordLens.Helpers.expand(lens) |> Enum.reduce(acc, fn path, accum ->
+            KeywordLens.Helpers.expand(lens)
+            |> Enum.reduce(acc, fn path, accum ->
               {_, res} = get_and_update_in(accum, path, &{&1, &1 * 2})
               Map.merge(accum, res)
             end)
           end)
 
-        assert t == o
+        assert result == oracle
       end
     end
   end
