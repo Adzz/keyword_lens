@@ -167,12 +167,28 @@ defimpl KeywordLens, for: Map do
   @doc """
   Returns data where each value pointed to by the KeywordLens has been replaced by the result
   of calling the fun with that value.
+
   ### Examples
+
       iex> KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
       %{a: %{b: 2}}
   """
+  # Is this really map_values
+  # map would follow elixir convention of returning list... That would mean we need to do an into
+  # But would allow us to map keys. Or we could add a map_keys function. The issue would be
+  # you now need to map twice to change the key and value... Maybe that's not bad.
+  # probably no worse than an into though.... But can get tricky.
+
+  # We can't expand then map values if we want to give a different error message than
+  # invalid map - which I sort of feel like we do (to make things clearer). The tradeoff
+  # is that it's slower. HOWEVER, users could do it themselves maybe ?
   def map(data, keyword_lens, fun) do
     fun = fn value -> {:cont, fun.(value)} end
+    # KeywordLens.Helpers.expand(keyword_lens)
+    # |> Enum.reduce(data, fn path, accum ->
+    #   {_, res} = get_and_update_in(accum, path, &{&1, fun.(&1)})
+    #   res
+    # end)
     {:cont, result} = lens_in(keyword_lens, data, fun)
     result
   end
