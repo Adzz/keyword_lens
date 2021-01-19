@@ -60,10 +60,12 @@ KeywordLens.map(%{a: %{b: 1}}, [a: :b], &(&1 + 1))
 You could, but the syntax becomes a bit verbose and repetitive:
 
 ```elixir
-%{a: %{b: 1}, c: %{d: 1, e: 1}}
-|> update_in([:a, :b], & &1 + 1)
-|> update_in([:c, :d], & &1 + 1)
-|> update_in([:c, :e], & &1 + 1)
+(
+  %{a: %{b: 1}, c: %{d: 1, e: 1}}
+  |> update_in([:a, :b], & &1 + 1)
+  |> update_in([:c, :d], & &1 + 1)
+  |> update_in([:c, :e], & &1 + 1)
+)
 %{a: %{b: 2}, c: %{d: 2, e: 2}}
 
 # Vs
@@ -72,7 +74,7 @@ KeywordLens.map(%{a: %{b: 1}, c: %{d: 1, e: 1}}, [a: :b, c: [:d, :e]], & &1+1)
 %{a: %{b: 2}, c: %{d: 2, e: 2}}
 ```
 
-Additionally get_in will return nil if you provide a path that doesn't point to a value:
+Additionally `get_in` will return nil if you provide a path that doesn't point to a value:
 
 ```elixir
 Kernel.get_in(%{}, [:a])
@@ -102,34 +104,22 @@ KeywordLens.map(%{a: 1}, [a: :b], & &1)
 ** (KeywordLens.InvalidPathError) a KeywordLens requires that each key in the path points to a map until the last key in the path. It looks like your path is wrong, please check.
 ```
 
-It's possible I may change this in the future. For example it might be nice to have a get_in like variant which returns nil when the value is not there.
+What's nice about this is you get a slightly clearer error message than what `get_in` can provide if you use an incorrect path. You can think of `KeywordLens.map` as being a `fetch!_and_update_in`.
 
-## Benchmarks
-
-TODO: finish
-
-Let's take the `map` function as an example. It takes a data structure, a keyword lens, and a function to apply to each of the values pointed to by the keyword lens. There are two approaches we could have taken to implement this.
-
-The simplest is to expand the keyword lens into all of the paths it encodes, then use get_in / update_in to replace the values at the ends of those paths:
+For now, if you want to use the compact KeywordLens notation, but have the semantics of `get_and_update_in` you can do this:
 
 ```elixir
-data = %{a: %{b: 1, c: %{d: 3, e: 4}}}
-keyword_lens = [a: [:b, c: [:d, :e]]]
-# This keyword_lens would expand to these paths:
-paths = [[:a, :b], [:a, :c, :d], [:a, :c, :e]]
-# Now we could iterate through each of them updating the values at the end:
-Enum.reduce(paths, data, fn path, acc ->
-  value = get_in(acc, path)
-  update_in(acc, path, value + 1)
-end)
+(
+  data = %{a: %{b: 1}, c: %{d: 1, e: 1}}
+  KeywordLens.Helpers.expand([a: :b, c: [:d, :e]])
+  |> Enum.reduce(data, fn path, acc ->
+    {_, result} = get_and_update_in(acc, path, &({&1, &1 + 1}))
+    result
+  end)
+)
 ```
 
-This is great and fast because elixir can make get_in/update_in a fast operation.
-
-The other way is to step through each point in the lens in turn. Doing that requires a zipper like traversal so we can keep our memory footprint reasonable. But it allows us to do things like end the traversal early if we wish. That means we can implement a map_while, which is not available in the get_in / update_in approach.
-
-
-**Aside what is a zipper?**
+### Aside what is a zipper?
 
 It's a way of traversing a structure without losing the parts you have visited, meaning you can step back or forwards through the traversal trivially. Let's take a list as an example
 ```
@@ -149,6 +139,8 @@ Stepping backwards is the reverse:
 unseen = [2, 3, 4, 5]; seen = [1]
 unseen = [1, 2, 3, 4, 5]; seen = []
 ```
+
+Internally we iterate through the nested data structures in this way.
 
 TODO: expand this explanation.
 
