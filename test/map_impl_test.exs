@@ -428,6 +428,7 @@ defmodule MapImplTest do
     end
 
     @tag timeout: :infinity
+    @tag :property
     test "property tests" do
       check all(
               generated_lists <-
@@ -436,8 +437,8 @@ defmodule MapImplTest do
                 |> StreamData.keyword_of(),
               default_map <-
                 StreamData.map_of(
-                  StreamData.integer(),
-                  StreamData.map_of(StreamData.integer(), StreamData.boolean())
+                  StreamData.term(),
+                  StreamData.map_of(StreamData.term(), StreamData.boolean())
                 )
             ) do
         generated_list = generated_lists |> Enum.map(&KeywordLens.Helpers.expand/1)

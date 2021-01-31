@@ -34,6 +34,15 @@ defprotocol KeywordLens do
   paths = [[:a], ["b"], [:c]]
   ```
 
+zip_with(l, r, fun)
+zip_with(stuff, fun)
+
+# Fun here would need to be 3 airity
+zip_with(l, r, acc, fun)
+# Fun here would need to be 2 airity, the first is a list.
+zip_with(stuff, acc, fun)
+
+
   You can implement this protocol for your own data types and therefore define different ways that
   the KeywordLens can be applied to your data structures. A map implementation is provided for
   convenience.
@@ -56,4 +65,8 @@ defprotocol KeywordLens do
   def map(data, keyword_lens, fun)
   def map_while(data, keyword_lens, fun)
   def reduce_while(data, keyword_lens, acc, fun)
+  def reduce(data, keyword_lens, acc, fun)
+  # Both need to be maps really (for map impl)
+  def zip_with_while(data, data_2, keyword_lens, fun)
+  def zip_while(data, data_2, keyword_lens, acc, fun)
 end

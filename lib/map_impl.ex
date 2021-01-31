@@ -3,6 +3,29 @@ defimpl KeywordLens, for: Map do
   A map implementation of the KeywordLens protocol.
   """
 
+  # Zip would be cool. Zip two subsets of maps together.
+  # count is just the size of the path? So seems pointless. Long as the path is accurate
+  # Reverse ? Filter ? reject ? contains? take ? is take just reduce ?
+  # map_keys, map_value, map (which raises if you don't return a {key, value} pair?)
+
+  @doc """
+  Takes an element from left and an element from right and passes them to fun. Creates a new WHAT
+  (list?) with the result of that function. The elements taken from left are determined by the left
+  lens, and the elements taken from right are determined by right lens.
+
+  ### Examples
+
+      iex> left = %{a: %{b: 1}}
+      ...> left_lens = [a: :b]
+      ...> right = %{c: %{d: 2}}
+      ...> right_lens = [c: :d]
+      ...> zip_with_while(left, left_lens, right, right_lens, fn left, right -> left + right end)
+      [3]
+  """
+  def zip_with_while(left,left_lens, right, right_lens, fun) when is_function(fun, 2) do
+
+  end
+
   @doc """
   Calls the reducing function with the value pointed to by each of the lenses encoded within the
   keyword_lens.
@@ -179,6 +202,13 @@ defimpl KeywordLens, for: Map do
   # you now need to map twice to change the key and value... Maybe that's not bad.
   # probably no worse than an into though.... But can get tricky.
 
+  # We could instead error if the mapping function doesn't return a tuple - especially given
+  # that we know we are mapping a map... However I don't know how that changes when we introduce
+  # other impls, like a list.
+
+  # In fact what happens then. Do we automatically dispatch to the
+  # This is why there is Access. Then instead of Map.get, we could Access
+
   # We can't expand then map values if we want to give a different error message than
   # invalid map - which I sort of feel like we do (to make things clearer). The tradeoff
   # is that it's slower. HOWEVER, users could do it themselves maybe ?
@@ -282,8 +312,19 @@ defimpl KeywordLens, for: Map do
     fetched =
       try do
         # Do we fetch or get? Can we have an API to pick each one?
-        # If you do this then we get autovivication which IS PRETTY WILD.
         # Map.get(data, key, %{})
+        # Also what happens if we hit a node that isn't a map. Right now we just error
+        # But that means we can't lens into this:
+        # Whereas we could if we were to use the Keyword lens at... what each node ?
+        # Really you need access. Then at each step you can say "do this to access the data structure"
+        # Notice how we are essentially using two protocols then...But get_in and the like only
+        # require one - Access.
+
+        # So the thing we need implemented is how to access each node I guess.Then at each step
+        # we can be like lens in like this, or error if it's not implemented. The extra tricky thing
+        # is how to split the things when you lens in / out. Like how would that work for a tuple?
+        # Need to implement for list to answer this.....
+        # %{a: %{b: [c: :d]}}, [a: [b: :c]]
         Map.fetch!(data, key)
       rescue
         BadMapError -> raise KeywordLens.InvalidPathError

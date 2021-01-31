@@ -69,8 +69,10 @@ You could, but the syntax becomes a bit verbose and repetitive:
 %{a: %{b: 2}, c: %{d: 2, e: 2}}
 
 # Vs
-
-KeywordLens.map(%{a: %{b: 1}, c: %{d: 1, e: 1}}, [a: :b, c: [:d, :e]], & &1+1)
+(
+  data = %{a: %{b: 1}, c: %{d: 1, e: 1}}
+  KeywordLens.map(data, [a: :b, c: [:d, :e]], & &1+1)
+)
 %{a: %{b: 2}, c: %{d: 2, e: 2}}
 ```
 
