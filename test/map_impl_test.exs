@@ -4,6 +4,26 @@ defmodule MapImplTest do
 
   doctest KeywordLens
 
+  describe "reduce_while - suspend" do
+    test "we can suspend the enumeration, and then continue it" do
+      data = %{a: 1, b: 2}
+
+      reducer = fn
+        {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})}
+        # {key, value}, {:cont, acc} -> {:suspend, Map.merge(acc, %{key => value + 1})}
+        # _, {:halt, acc} -> acc
+        # _, aaac -> aaac |> IO.inspect(limit: :infinity, label: "aaaac")
+      end
+
+      {:suspended, acc, continue} = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
+      assert acc == %{a: 2}
+      {:suspended, acc, continue} = continue.({:cont, acc})
+      assert acc == %{a: 2, b: 3}
+      continue.({:cont, acc})
+      |> IO.inspect(limit: :infinity, label: "")
+    end
+  end
+
   describe "reduce_while" do
     test "does this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}

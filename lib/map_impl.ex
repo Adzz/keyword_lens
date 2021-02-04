@@ -22,8 +22,16 @@ defimpl KeywordLens, for: Map do
       ...> zip_with_while(left, left_lens, right, right_lens, fn left, right -> left + right end)
       [3]
   """
-  def zip_with_while(left,left_lens, right, right_lens, fun) when is_function(fun, 2) do
+  def zip_with_while(left, left_lens, right, right_lens, acc, fun) when is_function(fun, 2) do
+    # If we have an acc then we can build up any data structure that we like as we go.
 
+    # We need to know how to consume a value from left and right. Well that is step_forward
+    # plus the pattern matching. but... like how do we weave the fun down. Callback doesn't sound chill
+    # because in this case we need different args passed to it?
+
+    # Essentially we need a take_while first, so we can take an element from one, suspend that
+    # take the next element from the second and continue until either has expired their paths.
+    # each time call the reducer with all the values in.
   end
 
   @doc """
@@ -69,8 +77,9 @@ defimpl KeywordLens, for: Map do
     #   remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
     #   lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
     # end
-    case lens_in_reduce(keyword_lens, data, accumulator, fun) do
+    case lens_in_reduce(keyword_lens, data, accumulator, fun) |> IO.inspect(limit: :infinity, label: "done did")do
       {:cont, {_, result}} -> result
+      {:suspended, so_far, continue} -> {:suspended, so_far, continue}
       {:halt, result} -> result
     end
   end
@@ -81,21 +90,29 @@ defimpl KeywordLens, for: Map do
 
   defp lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
        when is_list(value) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   defp lens_in_reduce({key, value = {_, _}}, [current | acc], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   defp lens_in_reduce({key, value}, [acc | _], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
+    continue = fn result ->
+      backtrack_reduce([value, key | acc], [], result, remaining, result)
+    end
+
     case fun.({value, fetched}, accu) do
-      {:cont, result} -> backtrack_reduce([value, key | acc], [], result, remaining, result)
+      {:cont, result} -> continue.(result)
+      {:suspend, result} -> {:suspended, result, continue}
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
     end
@@ -103,37 +120,54 @@ defimpl KeywordLens, for: Map do
 
   defp lens_in_reduce([{key, value}], [current | acc], data, data_rest, accu, fun)
        when is_list(value) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   defp lens_in_reduce([{key, value = {_, _}}], [current | acc], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   defp lens_in_reduce([{key, value}], [current | _], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
+    continue = fn result ->
+      backtrack_reduce([value, key | current], [], result, remaining, result)
+    end
+
     case fun.({value, fetched}, accu) do
-      {:cont, result} -> backtrack_reduce([value, key | current], [], result, remaining, result)
+      {:cont, result} -> continue.(result)
+      {:suspend, result} -> {:suspended, result, continue}
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
     end
   end
 
   defp lens_in_reduce([key], [current | _], data, data_rest, acc, fun) do
+    acc |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
 
+    continue = fn result ->
+      backtrack_reduce([key | current], [], result, remaining, result)
+    end
+
     case fun.({key, fetched}, acc) do
-      {:cont, result} -> backtrack_reduce([key | current], [], result, remaining, result)
+      {:cont, result} -> continue.(result)
+      {:suspend, result} -> {:suspended, result, continue}
       halt = {:halt, _} -> halt
-      _ -> raise KeywordLens.InvalidReducingFunctionError
+      x ->
+        x|> IO.inspect(limit: :infinity, label: "xxxxxxx")
+        raise KeywordLens.InvalidReducingFunctionError
     end
   end
 
   defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {:cont, {leg, accum}} =
       lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
 
@@ -142,24 +176,35 @@ defimpl KeywordLens, for: Map do
   end
 
   defp lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
 
-    with {:cont, result} <- fun.({key, fetched}, accu),
-         {:cont, {dataa, accum}} <-
-           backtrack_reduce([key | current], [], result, remaining, result) do
+    continue = fn result ->
+      {:cont, {dataa, accum}} = backtrack_reduce([key | current], [], result, remaining, result)
       data = Enum.reduce(Enum.reverse(current), dataa, &Map.fetch!(&2, &1))
       lens_in_reduce(rest, [current | [[key | current] | acc]], data, data_rest, accum, fun)
+    end
+
+    with {:cont, result} <- fun.({key, fetched}, accu) do
+      continue.(result)
     else
+      {:suspend, result} -> {:suspended, result, continue}
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
     end
   end
 
   defp lens_in_reduce(key, [acc | _], data, data_rest, accu, fun) do
+    accu |> IO.inspect(limit: :infinity, label: "okaassys")
     {fetched, remaining} = step_forward(data, key, data_rest)
 
+    continue = fn result ->
+      backtrack_reduce([key | acc], [], result, remaining, result)
+    end
+
     case fun.({key, fetched}, accu) do
-      {:cont, result} -> backtrack_reduce([key | acc], [], result, remaining, result)
+      {:cont, result} -> continue.(result)
+      {:suspend, result} -> {:suspended, result, continue}
       halt = {:halt, _} -> halt
       _ -> raise KeywordLens.InvalidReducingFunctionError
     end
@@ -325,6 +370,7 @@ defimpl KeywordLens, for: Map do
         # is how to split the things when you lens in / out. Like how would that work for a tuple?
         # Need to implement for list to answer this.....
         # %{a: %{b: [c: :d]}}, [a: [b: :c]]
+        # I guess this is why access exists.
         Map.fetch!(data, key)
       rescue
         BadMapError -> raise KeywordLens.InvalidPathError
