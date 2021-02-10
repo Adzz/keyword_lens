@@ -77,32 +77,41 @@ defimpl KeywordLens, for: Map do
     #   remaining = %{key => data_rest} |> Map.merge(Map.delete(data, key))
     #   lens_in_while(rest, [key | visited], fetched, accumulator, remaining, fun)
     # end
-    case lens_in_reduce(keyword_lens, data, accumulator, fun) |> IO.inspect(limit: :infinity, label: "done did")do
-      {:cont, {_, result}} -> result
-      {:suspended, so_far, continue} -> {:suspended, so_far, continue}
+    case lens_in_reduce(data, keyword_lens, {:cont, accumulator}, fun) do
+      {:done, {_, result}} -> result
+      {:suspended, so_far, continue} -> so_far
       {:halt, result} -> result
     end
   end
 
-  defp lens_in_reduce(paths, data, acc, fun) do
+  # Lens in reduce enforces that the reducer be wrapped in a tagged tuple
+  # The same way Enumerable.reduce does. That allows us to mirror elixir core
+  # in some ways. If we implement this for KeywordLens (maybe that's what the protocol is)
+  # then we get a lot of the other enum funs for free.
+  # The protocol probably also needs a map of some sort.
+
+  def lens_in_reduce(data, [], acc, fun), do: acc
+
+  def lens_in_reduce(data, paths, acc, fun) do
+    unwrap_continue(acc, &lens_in_reduce(paths, [[]], data, %{}, &1, fun))
+  end
+
+  def lens_in_reduce(data, paths, acc, fun) do
     lens_in_reduce(paths, [[]], data, %{}, acc, fun)
   end
 
-  defp lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
-       when is_list(value) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+      when is_list(value) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
-  defp lens_in_reduce({key, value = {_, _}}, [current | acc], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce({key, value = {_, _}}, [current | acc], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
-  defp lens_in_reduce({key, value}, [acc | _], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce({key, value}, [acc | _], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
@@ -110,29 +119,21 @@ defimpl KeywordLens, for: Map do
       backtrack_reduce([value, key | acc], [], result, remaining, result)
     end
 
-    case fun.({value, fetched}, accu) do
-      {:cont, result} -> continue.(result)
-      {:suspend, result} -> {:suspended, result, continue}
-      halt = {:halt, _} -> halt
-      _ -> raise KeywordLens.InvalidReducingFunctionError
-    end
+    unwrap_continue(fun.({value, fetched}, accu), continue)
   end
 
-  defp lens_in_reduce([{key, value}], [current | acc], data, data_rest, accu, fun)
-       when is_list(value) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce([{key, value}], [current | acc], data, data_rest, accu, fun)
+      when is_list(value) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
-  defp lens_in_reduce([{key, value = {_, _}}], [current | acc], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce([{key, value = {_, _}}], [current | acc], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
-  defp lens_in_reduce([{key, value}], [current | _], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce([{key, value}], [current | _], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
@@ -140,84 +141,58 @@ defimpl KeywordLens, for: Map do
       backtrack_reduce([value, key | current], [], result, remaining, result)
     end
 
-    case fun.({value, fetched}, accu) do
-      {:cont, result} -> continue.(result)
-      {:suspend, result} -> {:suspended, result, continue}
-      halt = {:halt, _} -> halt
-      _ -> raise KeywordLens.InvalidReducingFunctionError
-    end
+    unwrap_continue(fun.({value, fetched}, accu), continue)
   end
 
-  defp lens_in_reduce([key], [current | _], data, data_rest, acc, fun) do
-    acc |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce([key], [current | _], data, data_rest, acc, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
-
-    continue = fn result ->
-      backtrack_reduce([key | current], [], result, remaining, result)
-    end
-
-    case fun.({key, fetched}, acc) do
-      {:cont, result} -> continue.(result)
-      {:suspend, result} -> {:suspended, result, continue}
-      halt = {:halt, _} -> halt
-      x ->
-        x|> IO.inspect(limit: :infinity, label: "xxxxxxx")
-        raise KeywordLens.InvalidReducingFunctionError
-    end
+    continue = &backtrack_reduce([key | current], [], &1, remaining, &1)
+    unwrap_continue(fun.({key, fetched}, acc), continue)
   end
 
-  defp lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
-    {:cont, {leg, accum}} =
+  def lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
+    {:done, {leg, accum}} =
       lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
 
     data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
     lens_in_reduce(next, [current | [[value, key | current] | acc]], data, data_rest, accum, fun)
   end
 
-  defp lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
 
     continue = fn result ->
-      {:cont, {dataa, accum}} = backtrack_reduce([key | current], [], result, remaining, result)
+      {:done, {dataa, accum}} = backtrack_reduce([key | current], [], result, remaining, result)
       data = Enum.reduce(Enum.reverse(current), dataa, &Map.fetch!(&2, &1))
       lens_in_reduce(rest, [current | [[key | current] | acc]], data, data_rest, accum, fun)
     end
 
-    with {:cont, result} <- fun.({key, fetched}, accu) do
-      continue.(result)
-    else
-      {:suspend, result} -> {:suspended, result, continue}
-      halt = {:halt, _} -> halt
-      _ -> raise KeywordLens.InvalidReducingFunctionError
-    end
+    unwrap_continue(fun.({key, fetched}, accu), continue)
   end
 
-  defp lens_in_reduce(key, [acc | _], data, data_rest, accu, fun) do
-    accu |> IO.inspect(limit: :infinity, label: "okaassys")
+  def lens_in_reduce(key, [acc | _], data, data_rest, accu, fun) do
     {fetched, remaining} = step_forward(data, key, data_rest)
-
-    continue = fn result ->
-      backtrack_reduce([key | acc], [], result, remaining, result)
-    end
-
-    case fun.({key, fetched}, accu) do
-      {:cont, result} -> continue.(result)
-      {:suspend, result} -> {:suspended, result, continue}
-      halt = {:halt, _} -> halt
-      _ -> raise KeywordLens.InvalidReducingFunctionError
-    end
+    continue = &backtrack_reduce([key | acc], [], &1, remaining, &1)
+    unwrap_continue(fun.({key, fetched}, accu), continue)
   end
 
   defp backtrack_reduce([], _visited, data, data_rest, acc) do
-    {:cont, {Map.merge(data, data_rest), acc}}
+    {:done, {Map.merge(data, data_rest), acc}}
   end
 
   defp backtrack_reduce([key | rest], visited, data, data_rest, acc) do
     data = Map.merge(Map.delete(data_rest, key), %{key => data})
     backtrack_reduce(rest, [key | visited], data, Map.fetch!(data_rest, key), acc)
   end
+
+  defp unwrap_continue({:cont, acc}, continue), do: continue.(acc)
+  defp unwrap_continue({:halt, acc}, _continue), do: {:halted, acc}
+
+  defp unwrap_continue({:suspend, acc}, continue) do
+    {:suspended, acc, &unwrap_continue(&1, continue)}
+  end
+
+  defp unwrap_continue(_, _continue), do: raise(KeywordLens.InvalidReducingFunctionError)
 
   @doc """
   Maps until the mapping fun returns {:halt, term}, or until we reach the end of the data being

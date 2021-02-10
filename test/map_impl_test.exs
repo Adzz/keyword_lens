@@ -4,23 +4,78 @@ defmodule MapImplTest do
 
   doctest KeywordLens
 
-  describe "reduce_while - suspend" do
-    test "we can suspend the enumeration, and then continue it" do
+  describe "lens_in_reduce" do
+    test "suspend is idempotent - we can do it as many times as we want" do
       data = %{a: 1, b: 2}
+      lens = [:a, :b]
+      reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
 
-      reducer = fn
-        {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})}
-        # {key, value}, {:cont, acc} -> {:suspend, Map.merge(acc, %{key => value + 1})}
-        # _, {:halt, acc} -> acc
-        # _, aaac -> aaac |> IO.inspect(limit: :infinity, label: "aaaac")
-      end
+      {:suspended, acc, continue} = KeywordLens.lens_in_reduce(data, lens, {:cont, %{}}, reducer)
+      assert acc == %{a: 2}
+      {:suspended, acc, continue} = continue.({:suspend, acc})
+      assert acc == %{a: 2}
+      {:suspended, acc, continue} = continue.({:suspend, acc})
+      assert acc == %{a: 2}
+    end
 
-      {:suspended, acc, continue} = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
+    test "cont is a step" do
+      data = %{a: 1, b: 2}
+      lens = [:a, :b]
+      reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
+
+      {:suspended, acc, continue} = KeywordLens.lens_in_reduce(data, lens, {:cont, %{}}, reducer)
       assert acc == %{a: 2}
       {:suspended, acc, continue} = continue.({:cont, acc})
       assert acc == %{a: 2, b: 3}
-      continue.({:cont, acc})
-      |> IO.inspect(limit: :infinity, label: "")
+      {:done, {_, acc}} = continue.({:cont, acc})
+      assert acc == %{a: 2, b: 3}
+      {:done, {_, acc}} = continue.({:cont, acc})
+      assert acc == %{a: 2, b: 3}
+    end
+
+    test "halt stops" do
+      data = %{a: 1, b: 2}
+      lens = [:a, :b]
+      reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
+
+      {:suspended, acc, continue} = KeywordLens.lens_in_reduce(data, lens, {:cont, %{}}, reducer)
+      assert acc == %{a: 2}
+      assert {:halted, %{a: 2}} = continue.({:halt, acc})
+    end
+
+    test "We can step through a thing" do
+      data = %{a: 1, b: 2}
+      lens = [:a, :b]
+
+      reducer = fn {key, value}, acc ->
+        {:suspend,
+         Map.merge(acc |> IO.inspect(limit: :infinity, label: "accuuuuu"), %{key => value + 1})}
+      end
+
+      # Suspend is a no op...
+      # It should just return the thing ya heard..... This is a lower level thing
+      # So should do the stuff.
+
+      {:suspended, acc, continue} = KeywordLens.lens_in_reduce(data, lens, {:cont, %{}}, reducer)
+      assert acc == %{a: 2}
+      {:suspended, acc, continue} = continue.({:cont, acc})
+      assert acc == %{a: 2, b: 3}
+      {:done, continue} = continue.({:cont, acc})
+    end
+  end
+
+  describe "reduce_while - suspend" do
+    test "we can suspend the enumeration" do
+      # There is a lower level thing here I think. In elixir it is the Enumerable protocol.
+      # The idea is that reduce_while etc sits on top of that. so here what is the analouge
+
+      # We are trying to make this the lower level thing when it isn't; lens_in_reduce is.
+
+      # This matches what happens if you suspend reducing of an Enum.reduce_while
+      data = %{a: 1, b: 2}
+      reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
+      result = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)
+      assert result == %{a: 2}
     end
   end
 
@@ -28,15 +83,9 @@ defmodule MapImplTest do
     test "does this work?" do
       data = %{state: %{params: %{price: 10}, other: %{thing: 1}}}
       reducer = fn {key, value}, acc -> {:cont, Map.merge(acc, %{key => value + 1})} end
-
-      result =
-        KeywordLens.reduce_while(data, [state: [params: :price, other: :thing]], %{}, reducer)
-
+      lens = [state: [params: :price, other: :thing]]
+      result = KeywordLens.reduce_while(data, lens, %{}, reducer)
       assert result == %{price: 11, thing: 2}
-      # This is map:
-      # %{state: %{other: %{thing: 2}, params: %{price: 11}}}
-      # Reduce just collects up the values at the ends of the lists.... so yea
-      # %{price: 11, thing: 2}
     end
 
     test "mixed keys and stuff" do
