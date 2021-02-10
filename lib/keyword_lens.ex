@@ -68,7 +68,7 @@ defprotocol KeywordLens do
   # def reduce(data, keyword_lens, acc, fun)
   # If we implement this correctly we get some funs for free
   # not map though.
-  def lens_in_reduce(x, y, z, f)
+  def lens_in_reduce(data, keyword_lens, acc, reducer)
   # Both need to be maps really (for map impl)
   # def zip_with_while(data, data_2, keyword_lens, fun)
   # def zip_while(data, data_2, keyword_lens, acc, fun)

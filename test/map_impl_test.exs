@@ -14,7 +14,7 @@ defmodule MapImplTest do
       assert acc == %{a: 2}
       {:suspended, acc, continue} = continue.({:suspend, acc})
       assert acc == %{a: 2}
-      {:suspended, acc, continue} = continue.({:suspend, acc})
+      {:suspended, acc, _continue} = continue.({:suspend, acc})
       assert acc == %{a: 2}
     end
 
@@ -42,36 +42,10 @@ defmodule MapImplTest do
       assert acc == %{a: 2}
       assert {:halted, %{a: 2}} = continue.({:halt, acc})
     end
-
-    test "We can step through a thing" do
-      data = %{a: 1, b: 2}
-      lens = [:a, :b]
-
-      reducer = fn {key, value}, acc ->
-        {:suspend,
-         Map.merge(acc |> IO.inspect(limit: :infinity, label: "accuuuuu"), %{key => value + 1})}
-      end
-
-      # Suspend is a no op...
-      # It should just return the thing ya heard..... This is a lower level thing
-      # So should do the stuff.
-
-      {:suspended, acc, continue} = KeywordLens.lens_in_reduce(data, lens, {:cont, %{}}, reducer)
-      assert acc == %{a: 2}
-      {:suspended, acc, continue} = continue.({:cont, acc})
-      assert acc == %{a: 2, b: 3}
-      {:done, continue} = continue.({:cont, acc})
-    end
   end
 
   describe "reduce_while - suspend" do
     test "we can suspend the enumeration" do
-      # There is a lower level thing here I think. In elixir it is the Enumerable protocol.
-      # The idea is that reduce_while etc sits on top of that. so here what is the analouge
-
-      # We are trying to make this the lower level thing when it isn't; lens_in_reduce is.
-
-      # This matches what happens if you suspend reducing of an Enum.reduce_while
       data = %{a: 1, b: 2}
       reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
       result = KeywordLens.reduce_while(data, [:a, :b], %{}, reducer)

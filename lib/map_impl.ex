@@ -80,7 +80,7 @@ defimpl KeywordLens, for: Map do
     case lens_in_reduce(data, keyword_lens, {:cont, accumulator}, fun) do
       {:done, {_, result}} -> result
       {:suspended, so_far, continue} -> so_far
-      {:halt, result} -> result
+      {:halted, result} -> result
     end
   end
 
@@ -94,10 +94,6 @@ defimpl KeywordLens, for: Map do
 
   def lens_in_reduce(data, paths, acc, fun) do
     unwrap_continue(acc, &lens_in_reduce(paths, [[]], data, %{}, &1, fun))
-  end
-
-  def lens_in_reduce(data, paths, acc, fun) do
-    lens_in_reduce(paths, [[]], data, %{}, acc, fun)
   end
 
   def lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
