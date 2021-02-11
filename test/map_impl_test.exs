@@ -5,7 +5,7 @@ defmodule MapImplTest do
   doctest KeywordLens
 
   describe "lens_in_reduce" do
-    test "suspend is idempotent - we can do it as many times as we want" do
+    test ":suspend is idempotent - we can do it as many times as we want" do
       data = %{a: 1, b: 2}
       lens = [:a, :b]
       reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
@@ -18,7 +18,7 @@ defmodule MapImplTest do
       assert acc == %{a: 2}
     end
 
-    test "cont is a step" do
+    test ":cont is a step" do
       data = %{a: 1, b: 2}
       lens = [:a, :b]
       reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
@@ -33,7 +33,7 @@ defmodule MapImplTest do
       assert acc == %{a: 2, b: 3}
     end
 
-    test "halt stops" do
+    test ":halt stops" do
       data = %{a: 1, b: 2}
       lens = [:a, :b]
       reducer = fn {key, value}, acc -> {:suspend, Map.merge(acc, %{key => value + 1})} end
