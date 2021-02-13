@@ -1,4 +1,69 @@
 defprotocol KeywordLens do
+  # Kernel.def test do
+  # end
+
+  @doc """
+  Takes an element from left and an element from right and passes them to fun. Creates a new WHAT
+  (list?) with the result of that function. The elements taken from left are determined by the left
+  lens, and the elements taken from right are determined by right lens.
+
+  ### Examples
+
+      iex> left = %{a: %{b: 1}}
+      ...> left_lens = [a: :b]
+      ...> right = %{c: %{d: 2}}
+      ...> right_lens = [c: :d]
+      ...> zip_fn = fn [left, right], acc -> [left + right| acc] end
+      ...> KeywordLens.zip_with_while(left, left_lens, right, right_lens, [], zip_fn)
+      [3]
+  """
+  Kernel.def zip_with_while(left, left_lens, right, right_lens, acc, fun)
+             when is_function(fun, 2) do
+    step = fn x, _acc -> {:suspend, x |> IO.inspect(limit: :infinity, label: "x")} end
+    af = &KeywordLens.lens_in_reduce(left, left_lens, &1, step)
+    bf = &KeywordLens.lens_in_reduce(right, right_lens, &1, step)
+    do_zip(af, bf, acc, fun)
+  end
+
+  Kernel.defp do_zip(left, right, acc, fun) do
+    "HI do zip" |> IO.inspect(limit: :infinity, label: "")
+
+    case left.({:cont, :ignored}) do
+      {:suspended, left_next, left_continue} ->
+        case right.({:cont, :ignored}) do
+          {:suspended, right_next, right_continue} ->
+            unwrap_continue(
+              fun.(
+                [
+                  left_next |> IO.inspect(limit: :infinity, label: "L"),
+                  right_next |> IO.inspect(limit: :infinity, label: "R")
+                ],
+                acc
+              )
+              |> IO.inspect(limit: :infinity, label: "FUNNNNNNNN"),
+              &do_zip(left_continue, right_continue, &1, fun)
+            )
+        end
+
+      # {:halted, _} ->
+      #   acc
+
+      {:done, stuff} ->
+        stuff |> IO.inspect(limit: :infinity, label: "stuff")
+        acc
+    end
+    |> IO.inspect(limit: :infinity, label: "unwrap")
+  end
+
+  Kernel.defp(unwrap_continue({:cont, acc}, continue), do: continue.(acc))
+  Kernel.defp(unwrap_continue({:halt, acc}, _continue), do: {:halted, acc})
+
+  Kernel.defp unwrap_continue({:suspend, acc}, continue) do
+    {:suspended, acc, &unwrap_continue(&1, continue)}
+  end
+
+  Kernel.defp(unwrap_continue(_, _continue), do: raise(KeywordLens.InvalidReducingFunctionError))
+
   @moduledoc """
   A keyword lens is a nested keyword-like structure used to describe paths into certain data types.
   It is similar to the list you can provide to Ecto's Repo.preload/2

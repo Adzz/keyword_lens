@@ -9,25 +9,6 @@ defimpl KeywordLens, for: Map do
   # map_keys, map_value, map (which raises if you don't return a {key, value} pair?)
 
   @doc """
-  Takes an element from left and an element from right and passes them to fun. Creates a new WHAT
-  (list?) with the result of that function. The elements taken from left are determined by the left
-  lens, and the elements taken from right are determined by right lens.
-
-  ### Examples
-
-      iex> left = %{a: %{b: 1}}
-      ...> left_lens = [a: :b]
-      ...> right = %{c: %{d: 2}}
-      ...> right_lens = [c: :d]
-      ...> zip_fn = fn left, right, acc -> [left + right| acc] end
-      ...> zip_with_while(left, left_lens, right, right_lens, [], zip_fn)
-      [3]
-  """
-  def zip_with_while(left, left_lens, right, right_lens, acc, fun) when is_function(fun, 2) do
-    # ...
-  end
-
-  @doc """
   Maps until the mapping fun returns {:halt, term}, or until we reach the end of the data being
   mapped over. The mapping function must return {:cont, term} to continue to the next iteration.
   Returns data where each value pointed to by the KeywordLens has been replaced by the result
@@ -102,21 +83,25 @@ defimpl KeywordLens, for: Map do
   def lens_in_reduce(_data, [], acc, _fun), do: acc
 
   def lens_in_reduce(data, paths, acc, fun) do
+    1 |> IO.inspect(limit: :infinity, label: "")
     unwrap_continue(acc, &lens_in_reduce(paths, [[]], data, %{}, &1, fun))
   end
 
   def lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
       when is_list(value) do
+    2 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   def lens_in_reduce({key, value = {_, _}}, [current | acc], data, data_rest, accu, fun) do
+    3 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   def lens_in_reduce({key, value}, [acc | _], data, data_rest, accu, fun) do
+    4 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
@@ -129,16 +114,19 @@ defimpl KeywordLens, for: Map do
 
   def lens_in_reduce([{key, value}], [current | acc], data, data_rest, accu, fun)
       when is_list(value) do
+    5 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   def lens_in_reduce([{key, value = {_, _}}], [current | acc], data, data_rest, accu, fun) do
+    6 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     lens_in_reduce(value, [[key | current] | acc], fetched, remaining, accu, fun)
   end
 
   def lens_in_reduce([{key, value}], [current | _], data, data_rest, accu, fun) do
+    7 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     {fetched, remaining} = step_forward(fetched, value, remaining)
 
@@ -150,20 +138,47 @@ defimpl KeywordLens, for: Map do
   end
 
   def lens_in_reduce([key], [current | _], data, data_rest, acc, fun) do
+    8 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     continue = &backtrack_reduce([key | current], [], &1, remaining, &1)
     unwrap_continue(fun.({key, fetched}, acc), continue)
   end
 
   def lens_in_reduce([{key, value} | next], [current | acc], data, data_rest, accu, fun) do
-    {:done, {leg, accum}} =
-      lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun)
+    9 |> IO.inspect(limit: :infinity, label: "")
 
-    data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
-    lens_in_reduce(next, [current | [[value, key | current] | acc]], data, data_rest, accum, fun)
+    case lens_in_reduce({key, value}, [current | acc], data, data_rest, accu, fun) do
+      sus = {:suspended, a, cont} ->
+        a |> IO.inspect(limit: :infinity, label: "sus a")
+        sus
+
+        lens_in_reduce(
+          next,
+          [current | [[value, key | current] | acc]],
+          data |> IO.inspect(limit: :infinity, label: "data"),
+          data_rest |> IO.inspect(limit: :infinity, label: "datarest"),
+          a,
+          fun
+        )
+
+      # cont.({:cont, a})
+
+      {:done, {leg, accum}} ->
+        data = Enum.reduce(Enum.reverse(current), leg, &Map.fetch!(&2, &1))
+
+        lens_in_reduce(
+          next,
+          [current | [[value, key | current] | acc]],
+          data,
+          data_rest,
+          accum,
+          fun
+        )
+    end
   end
 
   def lens_in_reduce([key | rest], [current | acc], data, data_rest, accu, fun) do
+    10 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
 
     continue = fn result ->
@@ -176,6 +191,7 @@ defimpl KeywordLens, for: Map do
   end
 
   def lens_in_reduce(key, [acc | _], data, data_rest, accu, fun) do
+    11 |> IO.inspect(limit: :infinity, label: "")
     {fetched, remaining} = step_forward(data, key, data_rest)
     continue = &backtrack_reduce([key | acc], [], &1, remaining, &1)
     unwrap_continue(fun.({key, fetched}, accu), continue)
@@ -209,6 +225,7 @@ defimpl KeywordLens, for: Map do
   end
 
   defp backtrack_reduce([], _visited, data, data_rest, acc) do
+    "here" |> IO.inspect(limit: :infinity, label: "")
     {:done, {Map.merge(data, data_rest), acc}}
   end
 
@@ -220,6 +237,7 @@ defimpl KeywordLens, for: Map do
     backtrack_reduce(rest, [key | visited], data, Map.fetch!(data_rest, key), acc)
   end
 
+  # defp unwrap_continue({:done, acc}, _continue), do: {:done, acc}
   defp unwrap_continue({:cont, acc}, continue), do: continue.(acc)
   defp unwrap_continue({:halt, acc}, _continue), do: {:halted, acc}
 
@@ -227,5 +245,8 @@ defimpl KeywordLens, for: Map do
     {:suspended, acc, &unwrap_continue(&1, continue)}
   end
 
-  defp unwrap_continue(_, _continue), do: raise(KeywordLens.InvalidReducingFunctionError)
+  defp unwrap_continue(acc, _continue) do
+    acc |> IO.inspect(limit: :infinity, label: "WHHOOPS")
+    raise(KeywordLens.InvalidReducingFunctionError)
+  end
 end

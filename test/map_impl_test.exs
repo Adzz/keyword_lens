@@ -2,7 +2,39 @@ defmodule MapImplTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
-  doctest KeywordLens
+  doctest KeywordLens, import: true
+
+  describe "zip_with_while/6" do
+    test "We can zip two maps" do
+      left = %{a: %{b: 1}}
+      left_lens = [a: :b]
+      right = %{c: %{d: 2}}
+      right_lens = [c: :d]
+      zip_fn = fn [{_, left}, {_, right}], acc -> {:cont, [left + right | acc]} end
+      result = KeywordLens.zip_with_while(left, left_lens, right, right_lens, [], zip_fn)
+      assert result == [3]
+    end
+
+    test "We can suspend and resume zipping two maps" do
+      left = %{a: %{b: 1}, p: %{o: 4}}
+      left_lens = [a: :b, p: :o]
+      right = %{c: %{d: 2}, m: %{n: 7}}
+      right_lens = [c: :d, m: :n]
+
+      zip_fn = fn [{_, left}, {_, right}], acc ->
+        acc |> IO.inspect(limit: :infinity, label: "insideman")
+        {:suspend, [left + right | acc]}
+      end
+
+      {:suspended, acc, cont} =
+        KeywordLens.zip_with_while(left, left_lens, right, right_lens, [], zip_fn)
+
+      assert acc == [3]
+      "continueing" |> IO.inspect(limit: :infinity, label: "")
+      cont.({:cont, acc}) |> IO.inspect(limit: :infinity, label: "whaa")
+      cont.({:cont, acc}) |> IO.inspect(limit: :infinity, label: "whaa2")
+    end
+  end
 
   describe "lens_in_reduce" do
     test ":suspend is idempotent - we can do it as many times as we want" do
