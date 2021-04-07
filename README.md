@@ -24,6 +24,9 @@ Here are some examples of different KeywordLenses and the unique set of lenses t
 
 ```elixir
 keyword_lens = [a: :b]
+lenses = [[:a, :b]]
+
+keyword_lens = [:a, :b]
 lenses = [[:a], [:b]]
 
 keyword_lens = [a: [b: [:c, :d]]]
