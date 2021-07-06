@@ -504,6 +504,40 @@ defmodule MapImplTest do
 
     @tag timeout: :infinity
     @tag :property
+
+
+    # Alt approach taken from slack (not tested)
+    # # Return a random {key, value} pair from a map
+    # defp choose(map) do
+    #   choices = map |> Map.keys() |> Enum.map(&constant/1)
+    #   gen all key <- one_of(choices) do
+    #     {key, Map.get(map, key)}
+    #   end
+    # end
+
+    # # Return a list of keys through a nested map
+    # def random_path_gen(map) do
+    #   bind(choose(map), fn {key, val} ->
+    #     if is_map(val) do
+    #       bind(random_path_gen(val), fn more_keys -> constant([key | more_keys]) end)
+    #     else
+    #       constant([key])
+    #     end
+    #   end)
+    # end
+    #  map = %{
+    #   "a" => %{
+    #     "b" => %{
+    #       "c" => "d"
+    #     }
+    #   },
+    #   "e" => "f"
+    # }
+    # check all m <- random_path_gen(map) do
+    #   IO.inspect(m)
+    # end
+
+
     test "property tests" do
       check all(
               generated_lists <-
